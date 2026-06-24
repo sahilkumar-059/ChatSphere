@@ -21,7 +21,7 @@ const seedMessages = [
     chatId: "aman",
     senderId: "aman",
     senderName: "Aman",
-    text: "krish meeting kab hai?",
+    text: "bhai meeting kab hai?",
     type: "text",
     status: "delivered",
     timeLabel: "10:40 PM",
