@@ -110,8 +110,8 @@ export default function ChatWindow({
           rows={1}
         />
 
-        <button className="primary-button compact send-button" onClick={onSendMessage}>
-          Send
+        <button className="primary-button compact send-button" onClick={onSendMessage} aria-label="Send message">
+          ➤
         </button>
       </footer>
 
