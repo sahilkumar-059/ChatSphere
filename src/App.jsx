@@ -103,9 +103,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("Chats");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [searchChats, setSearchChats] = useState("");
-  const [searchMessages, setSearchMessages] = useState("");
   const [selectedChat, setSelectedChat] = useState(chats[0]);
   const [messageInput, setMessageInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -116,7 +114,6 @@ export default function App() {
   const [dragPreview, setDragPreview] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
-  const [presenceMap, setPresenceMap] = useState({});
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -160,7 +157,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [profile.bio, settings.notificationsEnabled, settings.readReceiptsEnabled, settings.themeMode, settings.wallpaper]);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -270,19 +267,15 @@ export default function App() {
           lastMessage: lastMessage?.text || chat.lastMessage,
           lastMessagePreview: lastMessage?.text || chat.lastMessage,
           lastTime: lastMessage?.timeLabel || chat.lastTime,
-          online: presenceMap[chat.id] ?? chat.online,
+          online: chat.online,
         };
       })
       .filter((chat) => !keyword || `${chat.name} ${chat.lastMessagePreview}`.toLowerCase().includes(keyword));
-  }, [messages, searchChats, user?.uid, presenceMap]);
+  }, [messages, searchChats, user?.uid]);
 
   const visibleMessages = useMemo(() => {
-    return messages.filter((message) => {
-      if (message.chatId !== currentChatId) return false;
-      if (!searchMessages.trim()) return true;
-      return `${message.text || ""}`.toLowerCase().includes(searchMessages.toLowerCase());
-    });
-  }, [messages, currentChatId, searchMessages]);
+    return messages.filter((message) => message.chatId === currentChatId);
+  }, [messages, currentChatId]);
 
   useEffect(() => {
     if (!user) return;
@@ -374,7 +367,6 @@ export default function App() {
     const docRef = await addDoc(collection(db, "messages"), messagePayload);
     setMessages((current) => current.map((message) => (message.id === tempId ? { ...message, id: docRef.id } : message)));
     setMessageInput("");
-    setShowEmojiPicker(false);
     setIsTyping(false);
 
     setTimeout(() => updateDoc(doc(db, "messages", docRef.id), { status: "delivered" }).catch(() => {}), 850);
@@ -401,13 +393,6 @@ export default function App() {
   const handleImageUpload = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (file) await uploadFileAndSend(file, file.type.startsWith("audio/") ? "audio" : "image");
-  };
-
-  const handleDrop = async (event) => {
-    event.preventDefault();
-    setDragPreview("");
-    const file = event.dataTransfer.files?.[0];
     if (file) await uploadFileAndSend(file, file.type.startsWith("audio/") ? "audio" : "image");
   };
 
@@ -438,10 +423,6 @@ export default function App() {
 
     recorder.start();
     setIsRecording(true);
-  };
-
-  const insertEmoji = (emojiData) => {
-    setMessageInput((current) => `${current}${emojiData.emoji}`);
   };
 
   const handleMarkSeen = async () => {
@@ -482,9 +463,6 @@ export default function App() {
           messageInput={messageInput}
           onMessageInputChange={setMessageInput}
           onSendMessage={sendMessage}
-          onEmojiToggle={() => setShowEmojiPicker((current) => !current)}
-          showEmojiPicker={showEmojiPicker}
-          onEmojiSelect={insertEmoji}
           onTyping={handleTyping}
           isTyping={isTyping}
           typingUser={typingUser}
@@ -500,8 +478,6 @@ export default function App() {
           dragPreview={dragPreview}
           onRecordToggle={toggleRecording}
           isRecording={isRecording}
-          onSearchMessages={setSearchMessages}
-          searchMessages={searchMessages}
           messagesEndRef={messagesEndRef}
           onMarkSeen={handleMarkSeen}
           currentUserPresence={currentPresence}

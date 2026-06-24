@@ -1,4 +1,3 @@
-import EmojiPicker from "emoji-picker-react";
 import MessageBubble from "./MessageBubble";
 
 export default function ChatWindow({
@@ -8,9 +7,6 @@ export default function ChatWindow({
   messageInput,
   onMessageInputChange,
   onSendMessage,
-  onEmojiToggle,
-  showEmojiPicker,
-  onEmojiSelect,
   onTyping,
   isTyping,
   typingUser,
@@ -20,8 +16,6 @@ export default function ChatWindow({
   dragPreview,
   onRecordToggle,
   isRecording,
-  onSearchMessages,
-  searchMessages,
   messagesEndRef,
   onMarkSeen,
   currentUserPresence,
@@ -61,26 +55,6 @@ export default function ChatWindow({
           <button className="icon-button" type="button" aria-label="More options">
             ⋮
           </button>
-          <input
-            className="search-input compact"
-            type="text"
-            placeholder="Search messages"
-            value={searchMessages}
-            onChange={(event) => onSearchMessages(event.target.value)}
-          />
-          <button className="icon-button" onClick={onEmojiToggle} aria-label="Emoji picker">
-            😊
-          </button>
-          <button className="icon-button" onClick={onImageUpload} aria-label="Attach image">
-            📎
-          </button>
-          <button
-            className={`icon-button ${isRecording ? "recording" : ""}`}
-            onClick={onRecordToggle}
-            aria-label="Record voice message"
-          >
-            🎙️
-          </button>
         </div>
       </header>
 
@@ -110,9 +84,19 @@ export default function ChatWindow({
       </div>
 
       <footer className="composer-shell">
-        <button className="icon-button" onClick={onEmojiToggle} aria-label="Open emoji picker">
-          😄
-        </button>
+        <div className="composer-actions">
+          <button className="icon-button" type="button" onClick={onImageUpload} aria-label="Attach file">
+            📎
+          </button>
+          <button
+            className={`icon-button ${isRecording ? "recording" : ""}`}
+            type="button"
+            onClick={onRecordToggle}
+            aria-label="Record voice message"
+          >
+            🎤
+          </button>
+        </div>
 
         <textarea
           className="composer-input"
@@ -126,16 +110,10 @@ export default function ChatWindow({
           rows={1}
         />
 
-        <button className="primary-button compact" onClick={onSendMessage}>
+        <button className="primary-button compact send-button" onClick={onSendMessage}>
           Send
         </button>
       </footer>
-
-      {showEmojiPicker ? (
-        <div className="emoji-popover">
-          <EmojiPicker onEmojiClick={onEmojiSelect} theme="dark" />
-        </div>
-      ) : null}
 
       <div className="hidden-actions">
         <button onClick={onMarkSeen}>Mark Seen</button>
