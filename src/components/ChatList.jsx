@@ -27,7 +27,7 @@ export default function ChatList({
           <button
             key={chat.id}
             className={`chat-row ${selectedChatId === chat.id ? "active" : ""}`}
-            onClick={() => onSelectChat(chat.id)}
+            onClick={() => onSelectChat(chat)}
           >
             <div className="chat-avatar" style={{ background: chat.color }}>
               {chat.avatar}
@@ -37,12 +37,12 @@ export default function ChatList({
             <div className="chat-row-body">
               <div className="chat-row-top">
                 <strong>{chat.name}</strong>
-                <span>{chat.timeLabel}</span>
+                <span>{chat.lastTime}</span>
               </div>
 
               <div className="chat-row-bottom">
                 <p>{chat.lastMessagePreview}</p>
-                {chat.unreadCount > 0 ? <span className="unread-pill">{chat.unreadCount}</span> : null}
+                {chat.unread > 0 ? <span className="unread-pill">{chat.unread}</span> : null}
               </div>
             </div>
           </button>
