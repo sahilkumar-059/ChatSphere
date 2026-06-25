@@ -228,6 +228,11 @@ scale(1.02);
   gap:20px;
   overflow-y:auto;
   scroll-behavior:smooth;
+  background:rgba(15, 23, 42, 0.6);
+  border:1px solid rgba(255, 255, 255, 0.08);
+  border-radius:20px;
+  margin:12px;
+  box-shadow:0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .messages::-webkit-scrollbar{
@@ -729,6 +734,11 @@ body.light-theme {
   color: #0f172a;
 }
 
+.app.light .messages {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
 .app.light .message-input button,
 .app.light .menu-toggle,
 .app.light .menu-item,
@@ -976,8 +986,8 @@ body {
 }
 
 .sidebar-shell {
-  width: 240px;
-  padding: 22px;
+  width: 260px;
+  padding: 2px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -993,7 +1003,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
 }
 
 .sidebar-profile {
