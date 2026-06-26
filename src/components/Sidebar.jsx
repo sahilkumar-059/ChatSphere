@@ -1,7 +1,6 @@
 const navItems = [
   { id: "Home", icon: "🏠" },
   { id: "Chats", icon: "💬" },
-  { id: "Friends", icon: "👥" },
   { id: "Calls", icon: "📞" },
   { id: "Notifications", icon: "🔔" },
   { id: "Settings", icon: "⚙️" },
@@ -12,12 +11,15 @@ export default function Sidebar({
   activeTab,
   onTabChange,
   onOpenSettings,
-  onLogin,
+  onOpenSearchFriends,
   onLogout,
   onToggleSidebar,
   sidebarOpen,
   unreadCount,
+  incomingFriendCount,
 }) {
+  const [homeItem, ...otherNavItems] = navItems;
+
   return (
     <aside className={`sidebar-shell ${sidebarOpen ? "open" : "collapsed"}`}>
       <div className="sidebar-top">
@@ -31,22 +33,28 @@ export default function Sidebar({
         </button>
       </div>
 
-      {user ? (
-        <div className="sidebar-profile">
-          <img src={user.photoURL} alt={user.displayName || "Profile"} />
-          <div>
-            <strong>{user.displayName}</strong>
-            <span>{user.email}</span>
-          </div>
+      <div className="sidebar-profile">
+        <img src={user?.photoURL || ""} alt={user?.displayName || "Profile"} />
+        <div>
+          <strong>{user?.displayName || "ChatSphere User"}</strong>
         </div>
-      ) : (
-        <button className="login-button" onClick={onLogin}>
-          Sign in with Google
-        </button>
-      )}
+      </div>
 
       <nav className="sidebar-nav">
-        {navItems.map((item) => (
+        <button
+          className={`nav-item ${activeTab === homeItem.id ? "active" : ""}`}
+          onClick={() => onTabChange(homeItem.id)}
+        >
+          <span className="nav-icon">{homeItem.icon}</span>
+          <span>{homeItem.id}</span>
+        </button>
+
+        <button type="button" className="sidebar-search-friends" onClick={onOpenSearchFriends}>
+          <span className="nav-icon">🔍</span>
+          <span>Search Friends</span>
+        </button>
+
+        {otherNavItems.map((item) => (
           <button
             key={item.id}
             className={`nav-item ${activeTab === item.id ? "active" : ""}`}
@@ -72,11 +80,9 @@ export default function Sidebar({
           Open Settings
         </button>
 
-        {user ? (
-          <button className="secondary-button danger" onClick={onLogout}>
-            Logout
-          </button>
-        ) : null}
+        <button className="secondary-button danger" onClick={onLogout}>
+          Logout
+        </button>
       </div>
     </aside>
   );

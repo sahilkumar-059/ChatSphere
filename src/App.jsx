@@ -1,77 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
-import { addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
-import { auth, db, provider, storage } from "./firebase";
+import { db, storage } from "./firebase";
+import { useAuth } from "./context/AuthContext";
 import Sidebar from "./components/Sidebar";
 import ChatList from "./components/ChatList";
 import ChatWindow from "./components/ChatWindow";
 import Settings from "./components/Settings";
+import SearchFriendsModal from "./components/friends/SearchFriendsModal";
+import FriendRequestsPage from "./components/friends/FriendRequestsPage";
+import { subscribeFriendData } from "./services/friendService";
+import { getOrCreateChatRoom, sendMessage as sendChatMessage, subscribeToMessages, subscribeToUserChats } from "./services/chatService";
 import "./App.css";
 
-const chats = [
-  { id: "aman", name: "Aman", avatar: "A", online: true, lastMessage: "Bro meeting kab hai?", lastTime: "10:45 AM", unread: 2 },
-  { id: "priya", name: "Priya", avatar: "P", online: false, lastMessage: "Call me when free", lastTime: "09:20 AM", unread: 0 },
-  { id: "rohit", name: "Rohit", avatar: "R", online: true, lastMessage: "Project push kar diya", lastTime: "Yesterday", unread: 5 },
-];
-
-const seedMessages = [
-  {
-    id: "seed-aman-1",
-    chatId: "aman",
-    senderId: "aman",
-    senderName: "Aman",
-    text: "bhai kab hai?",
-    type: "text",
-    status: "delivered",
-    timeLabel: "10:40 PM",
-    order: 1,
-  },
-  {
-    id: "seed-me-1",
-    chatId: "aman",
-    senderId: "me",
-    senderName: "You",
-    text: "11 baje start hogi",
-    type: "text",
-    status: "seen",
-    timeLabel: "10:41 PM",
-    order: 2,
-  },
-  {
-    id: "seed-aman-2",
-    chatId: "aman",
-    senderId: "aman",
-    senderName: "Aman",
-    text: "Perfect 👍",
-    type: "text",
-    status: "delivered",
-    timeLabel: "10:42 PM",
-    order: 3,
-  },
-  {
-    id: "seed-priya-1",
-    chatId: "priya",
-    senderId: "priya",
-    senderName: "Priya",
-    text: "Call me when free",
-    type: "text",
-    status: "delivered",
-    timeLabel: "09:20 AM",
-    order: 4,
-  },
-  {
-    id: "seed-rohit-1",
-    chatId: "rohit",
-    senderId: "rohit",
-    senderName: "Rohit",
-    text: "Project push kar diya",
-    type: "text",
-    status: "delivered",
-    timeLabel: "Yesterday",
-    order: 5,
-  },
-];
 
 const defaultSettings = {
   themeMode: "dark",
@@ -87,6 +28,13 @@ const formatTimeLabel = (value) => {
   return String(value);
 };
 
+// Generate a unique chat ID for two users (sorted to ensure consistency)
+function getChatId(userId1, userId2) {
+  if (!userId1 || !userId2) return "";
+  const sortedIds = [userId1, userId2].sort();
+  return `${sortedIds[0]}_${sortedIds[1]}`;
+}
+
 const readStoredSettings = () => {
   try {
     const stored = localStorage.getItem("chatsphere-settings");
@@ -97,18 +45,28 @@ const readStoredSettings = () => {
 };
 
 export default function App() {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState({ bio: "Building something better than chat apps." });
+  const { user, logout } = useAuth();
+  const [profile, setProfile] = useState({ bio: "Building something better than chat apps.", username: "" });
   const [settings, setSettings] = useState(readStoredSettings);
   const [activeTab, setActiveTab] = useState("Chats");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSearchFriends, setShowSearchFriends] = useState(false);
+  const [friendData, setFriendData] = useState({
+    friends: [],
+    incoming: [],
+    outgoing: [],
+    friendIds: new Set(),
+    outgoingIds: new Set(),
+    incomingIds: new Set(),
+  });
   const [searchChats, setSearchChats] = useState("");
-  const [selectedChat, setSelectedChat] = useState(chats[0]);
+  const [selectedChat, setSelectedChat] = useState(null);
   const [messageInput, setMessageInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [typingUser, setTypingUser] = useState("Aman");
-  const [messages, setMessages] = useState(seedMessages);
+  const [typingUser, setTypingUser] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [userChats, setUserChats] = useState([]);
   const [online, setOnline] = useState(navigator.onLine);
   const [lastSeen, setLastSeen] = useState("just now");
   const [dragPreview, setDragPreview] = useState("");
@@ -120,7 +78,21 @@ export default function App() {
   const audioChunksRef = useRef([]);
   const typingTimerRef = useRef(null);
 
-  const currentChatId = selectedChat.id;
+  const currentChatId = selectedChat?.chatId || getChatId(user?.uid, selectedChat?.id || selectedChat?.friendId);
+
+  const handleSelectChat = async (chat) => {
+    if (!user) return;
+    
+    const friendId = chat.friendId || chat.id;
+    const chatId = await getOrCreateChatRoom(user.uid, friendId);
+    
+    setSelectedChat({
+      ...chat,
+      id: friendId,
+      friendId,
+      chatId,
+    });
+  };
 
   useEffect(() => {
     localStorage.setItem("chatsphere-settings", JSON.stringify(settings));
@@ -132,32 +104,21 @@ export default function App() {
   }, [settings.themeMode]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
-      setUser(nextUser);
+    if (!user) return undefined;
 
-      if (!nextUser) return;
-
-      await setDoc(
-        doc(db, "users", nextUser.uid),
-        {
-          uid: nextUser.uid,
-          displayName: nextUser.displayName || "ChatSphere user",
-          email: nextUser.email || "",
-          photoURL: nextUser.photoURL || "",
-          bio: profile.bio,
-          isOnline: true,
-          lastSeen: serverTimestamp(),
-          themeMode: settings.themeMode,
-          notificationsEnabled: settings.notificationsEnabled,
-          readReceiptsEnabled: settings.readReceiptsEnabled,
-          wallpaper: settings.wallpaper,
-        },
-        { merge: true }
-      );
-    });
-
-    return () => unsubscribe();
-  }, [profile.bio, settings.notificationsEnabled, settings.readReceiptsEnabled, settings.themeMode, settings.wallpaper]);
+    const userRef = doc(db, "users", user.uid);
+    setDoc(
+      userRef,
+      {
+        themeMode: settings.themeMode,
+        notificationsEnabled: settings.notificationsEnabled,
+        readReceiptsEnabled: settings.readReceiptsEnabled,
+        wallpaper: settings.wallpaper,
+        bio: profile.bio,
+      },
+      { merge: true }
+    ).catch(() => {});
+  }, [user, profile.bio, settings.notificationsEnabled, settings.readReceiptsEnabled, settings.themeMode, settings.wallpaper]);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -165,7 +126,10 @@ export default function App() {
     const userRef = doc(db, "users", user.uid);
     const unsubscribe = onSnapshot(userRef, (snapshot) => {
       const data = snapshot.data() || {};
-      setProfile({ bio: data.bio || "Building something better than chat apps." });
+      setProfile({
+        bio: data.bio || "Building something better than chat apps.",
+        username: data.username || "",
+      });
       setSettings((current) => ({
         ...current,
         themeMode: data.themeMode || current.themeMode,
@@ -204,6 +168,11 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
+    if (!user?.uid) return undefined;
+    return subscribeFriendData(user.uid, setFriendData);
+  }, [user?.uid]);
+
+  useEffect(() => {
     if (!user || !settings.notificationsEnabled || !("Notification" in window)) return;
     if (Notification.permission === "default") {
       Notification.requestPermission();
@@ -211,32 +180,17 @@ export default function App() {
   }, [settings.notificationsEnabled, user]);
 
   useEffect(() => {
-    const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const nextMessages = snapshot.docs.map((messageDoc) => ({
-        id: messageDoc.id,
-        ...messageDoc.data(),
-        order: messageDoc.data().createdAt?.toMillis?.() || Date.now(),
-        timeLabel: formatTimeLabel(messageDoc.data().createdAt || messageDoc.data().timeLabel),
-      }));
+    if (!user?.uid) return undefined;
+    return subscribeToUserChats(user.uid, (chats) => {
+      setUserChats(chats);
+    });
+  }, [user?.uid]);
 
-      setMessages((current) => {
-        const merged = new Map(current.map((message) => [message.id, message]));
-        const serverClientKeys = new Set(nextMessages.map((message) => message.clientKey).filter(Boolean));
-
-        Array.from(merged.values())
-          .filter((message) => serverClientKeys.has(message.clientKey))
-          .forEach((message) => merged.delete(message.id));
-
-        nextMessages.forEach((message) => {
-          const existing = merged.get(message.id) || {};
-          merged.set(message.id, { ...existing, ...message });
-        });
-
-        return Array.from(merged.values()).sort((left, right) => (left.order || 0) - (right.order || 0));
-      });
-
-      const unread = nextMessages.filter((message) => message.chatId === currentChatId && message.senderId !== user?.uid && message.status !== "seen");
+  useEffect(() => {
+    if (!currentChatId || !user?.uid) return undefined;
+    return subscribeToMessages(currentChatId, (messages) => {
+      setMessages(messages);
+      const unread = messages.filter((message) => message.senderId !== user.uid && message.status !== "seen");
       setNotificationCount(unread.length);
 
       if (settings.notificationsEnabled && typeof Notification !== "undefined" && Notification.permission === "granted") {
@@ -247,8 +201,6 @@ export default function App() {
         });
       }
     });
-
-    return () => unsubscribe();
   }, [currentChatId, settings.notificationsEnabled, user?.uid]);
 
   useEffect(() => {
@@ -257,21 +209,26 @@ export default function App() {
 
   const filteredChats = useMemo(() => {
     const keyword = searchChats.trim().toLowerCase();
-    return chats
-      .map((chat) => {
-        const chatMessages = messages.filter((message) => message.chatId === chat.id);
+    return friendData.friends
+      .map((friend) => {
+        const chatId = getChatId(user?.uid, friend.friendId);
+        const chatRoom = userChats.find((chat) => chat.id === chatId);
+        const chatMessages = messages.filter((message) => message.chatId === chatId);
         const lastMessage = chatMessages[chatMessages.length - 1];
         return {
-          ...chat,
+          id: friend.friendId,
+          name: friend.friendFullName,
+          avatar: friend.friendPhotoURL || friend.friendFullName?.charAt(0) || "?",
+          online: friend.online || false,
+          lastMessage: lastMessage?.text || chatRoom?.lastMessage || "No messages yet",
+          lastMessagePreview: lastMessage?.text || chatRoom?.lastMessage || "No messages yet",
+          lastTime: lastMessage?.timeLabel || formatTimeLabel(chatRoom?.lastMessageTime) || "",
           unread: chatMessages.filter((message) => message.senderId !== user?.uid && message.status !== "seen").length,
-          lastMessage: lastMessage?.text || chat.lastMessage,
-          lastMessagePreview: lastMessage?.text || chat.lastMessage,
-          lastTime: lastMessage?.timeLabel || chat.lastTime,
-          online: chat.online,
+          friendId: friend.friendId,
         };
       })
       .filter((chat) => !keyword || `${chat.name} ${chat.lastMessagePreview}`.toLowerCase().includes(keyword));
-  }, [messages, searchChats, user?.uid]);
+  }, [friendData.friends, userChats, messages, searchChats, user?.uid]);
 
   const visibleMessages = useMemo(() => {
     return messages.filter((message) => message.chatId === currentChatId);
@@ -285,16 +242,9 @@ export default function App() {
     });
   }, [user, visibleMessages]);
 
-  const login = async () => {
-    await signInWithPopup(auth, provider);
-  };
-
-  const logout = async () => {
-    if (user) {
-      await setDoc(doc(db, "users", user.uid), { isOnline: false, lastSeen: serverTimestamp() }, { merge: true }).catch(() => {});
-    }
+  const handleLogout = async () => {
     setShowSettings(false);
-    await signOut(auth);
+    await logout();
   };
 
   const openSettings = () => {
@@ -314,67 +264,36 @@ export default function App() {
 
   const handleTyping = () => {
     setIsTyping(true);
-    setTypingUser(selectedChat.name);
+    setTypingUser(selectedChat?.name || "");
     clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => setIsTyping(false), 1200);
   };
 
   const sendMessage = async ({ text, type = "text", imageUrl = "", audioUrl = "" } = {}) => {
-    const activeUser = user || {
-      uid: "guest",
-      displayName: "You",
-      photoURL: "",
-      email: "",
-    };
+    if (!user || !selectedChat) return;
+    
     const resolvedText = typeof text === "string" ? text : messageInput;
     if (!resolvedText.trim() && !imageUrl && !audioUrl) return;
 
-    const tempId = `temp-${Date.now()}`;
-    const optimisticMessage = {
-      id: tempId,
-      clientKey: tempId,
-      chatId: currentChatId,
-      senderId: activeUser.uid,
-      senderName: activeUser.displayName || "You",
-      senderPhotoURL: activeUser.photoURL || "",
-      text: resolvedText.trim(),
-      imageUrl,
-      audioUrl,
-      type,
-      status: "sent",
-      order: Date.now(),
-      timeLabel: formatTimeLabel(new Date()),
-    };
-
-    setMessages((current) => [...current, optimisticMessage].sort((left, right) => (left.order || 0) - (right.order || 0)));
+    // Get or create chat room
+    const chatId = await getOrCreateChatRoom(user.uid, selectedChat.friendId || selectedChat.id);
+    
+    // Update selected chat with the correct chatId
+    setSelectedChat((prev) => ({ ...prev, chatId }));
 
     const messagePayload = {
-      chatId: currentChatId,
-      senderId: activeUser.uid,
-      senderName: activeUser.displayName || "You",
-      senderPhotoURL: activeUser.photoURL || "",
+      senderId: user.uid,
+      senderName: user.displayName || "You",
+      senderPhotoURL: user.photoURL || "",
       text: resolvedText.trim(),
       imageUrl,
       audioUrl,
       type,
-      status: "sent",
-      clientKey: tempId,
-      createdAt: serverTimestamp(),
-      order: Date.now(),
-      timeLabel: formatTimeLabel(new Date()),
     };
 
-    const docRef = await addDoc(collection(db, "messages"), messagePayload);
-    setMessages((current) => current.map((message) => (message.id === tempId ? { ...message, id: docRef.id } : message)));
+    await sendChatMessage(chatId, messagePayload);
     setMessageInput("");
     setIsTyping(false);
-
-    setTimeout(() => updateDoc(doc(db, "messages", docRef.id), { status: "delivered" }).catch(() => {}), 850);
-    setTimeout(() => {
-      if (settings.readReceiptsEnabled) {
-        updateDoc(doc(db, "messages", docRef.id), { status: "seen", seenAt: serverTimestamp() }).catch(() => {});
-      }
-    }, 1600);
   };
 
   const uploadFileAndSend = async (file, mediaType = "image") => {
@@ -432,6 +351,7 @@ export default function App() {
   };
 
   const currentPresence = online ? "Online now" : `Last seen ${lastSeen}`;
+  const isFriendsView = activeTab === "Friends";
 
   return (
     <div className={`app-shell theme-${settings.themeMode}`}>
@@ -440,48 +360,59 @@ export default function App() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onOpenSettings={openSettings}
-        onLogin={login}
-        onLogout={logout}
+        onOpenSearchFriends={() => setShowSearchFriends(true)}
+        onLogout={handleLogout}
         onToggleSidebar={() => setSidebarOpen((current) => !current)}
         sidebarOpen={sidebarOpen}
         unreadCount={notificationCount}
+        incomingFriendCount={friendData.incoming.length}
       />
 
-      <div className="app-content">
-        <ChatList
-          chats={filteredChats}
-          searchChats={searchChats}
-          onSearchChats={setSearchChats}
-          selectedChatId={currentChatId}
-          onSelectChat={setSelectedChat}
-        />
+      <div className={`app-content ${isFriendsView ? "friends-active" : ""}`}>
+        {isFriendsView ? (
+          <FriendRequestsPage
+            friendData={friendData}
+            onOpenSearch={() => setShowSearchFriends(true)}
+          />
+        ) : (
+          <>
+            <ChatList
+              chats={filteredChats}
+              friends={friendData.friends}
+              searchChats={searchChats}
+              onSearchChats={setSearchChats}
+              selectedChatId={currentChatId}
+              onSelectChat={handleSelectChat}
+            />
 
-        <ChatWindow
-          user={user}
-          chat={selectedChat}
-          messages={visibleMessages}
-          messageInput={messageInput}
-          onMessageInputChange={setMessageInput}
-          onSendMessage={sendMessage}
-          onTyping={handleTyping}
-          isTyping={isTyping}
-          typingUser={typingUser}
-          onImageUpload={() => fileInputRef.current?.click()}
-          onDropFiles={(files) => {
-            const file = files?.[0];
-            if (file) uploadFileAndSend(file, file.type.startsWith("audio/") ? "audio" : "image");
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragPreview("Drop files to upload");
-          }}
-          dragPreview={dragPreview}
-          onRecordToggle={toggleRecording}
-          isRecording={isRecording}
-          messagesEndRef={messagesEndRef}
-          onMarkSeen={handleMarkSeen}
-          currentUserPresence={currentPresence}
-        />
+            <ChatWindow
+              user={user}
+              chat={selectedChat}
+              messages={visibleMessages}
+              messageInput={messageInput}
+              onMessageInputChange={setMessageInput}
+              onSendMessage={sendMessage}
+              onTyping={handleTyping}
+              isTyping={isTyping}
+              typingUser={typingUser}
+              onImageUpload={() => fileInputRef.current?.click()}
+              onDropFiles={(files) => {
+                const file = files?.[0];
+                if (file) uploadFileAndSend(file, file.type.startsWith("audio/") ? "audio" : "image");
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragPreview("Drop files to upload");
+              }}
+              dragPreview={dragPreview}
+              onRecordToggle={toggleRecording}
+              isRecording={isRecording}
+              messagesEndRef={messagesEndRef}
+              onMarkSeen={handleMarkSeen}
+              currentUserPresence={currentPresence}
+            />
+          </>
+        )}
       </div>
 
       {showSettings ? (
@@ -495,10 +426,21 @@ export default function App() {
           onToggleReadReceipts={() => updateSettings({ readReceiptsEnabled: !settings.readReceiptsEnabled })}
           onWallpaperChange={(wallpaper) => updateSettings({ wallpaper })}
           onSaveProfile={saveProfile}
-          onLogout={logout}
+          onLogout={handleLogout}
           online={online}
           lastSeenLabel={lastSeen}
           onClose={() => setShowSettings(false)}
+        />
+      ) : null}
+
+      {showSearchFriends ? (
+        <SearchFriendsModal
+          user={user}
+          friendData={{
+            ...friendData,
+            currentUsername: profile.username,
+          }}
+          onClose={() => setShowSearchFriends(false)}
         />
       ) : null}
 

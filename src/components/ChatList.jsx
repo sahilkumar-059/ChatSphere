@@ -1,10 +1,13 @@
 export default function ChatList({
   chats,
+  friends,
   searchChats,
   onSearchChats,
   selectedChatId,
   onSelectChat,
 }) {
+  const displayChats = friends && friends.length > 0 ? friends : chats;
+
   return (
     <section className="chat-list-shell">
       <div className="chat-list-header">
@@ -23,30 +26,52 @@ export default function ChatList({
       </div>
 
       <div className="chat-list-items">
-        {chats.map((chat) => (
-          <button
-            key={chat.id}
-            className={`chat-row ${selectedChatId === chat.id ? "active" : ""}`}
-            onClick={() => onSelectChat(chat)}
-          >
-            <div className="chat-avatar" style={{ background: chat.color }}>
-              {chat.avatar}
-              <span className={`presence-dot ${chat.online ? "online" : "offline"}`} />
-            </div>
+        {displayChats.length === 0 ? (
+          <div className="chat-list-empty">
+            <div className="empty-icon">💬</div>
+            <h3>No conversations yet</h3>
+            <p>Search for friends to start chatting</p>
+          </div>
+        ) : (
+          displayChats.map((chat) => {
+            const chatId = chat.id || chat.friendId;
+            const chatName = chat.name || chat.friendFullName;
+            const chatAvatar = chat.avatar || chat.friendPhotoURL || chat.friendFullName?.charAt(0) || "?";
+            const chatOnline = chat.online !== undefined ? chat.online : false;
+            const lastMessage = chat.lastMessagePreview || chat.lastMessage || "No messages yet";
+            const lastTime = chat.lastTime || "";
+            const unread = chat.unread || 0;
 
-            <div className="chat-row-body">
-              <div className="chat-row-top">
-                <strong>{chat.name}</strong>
-                <span>{chat.lastTime}</span>
-              </div>
+            return (
+              <button
+                key={chatId}
+                className={`chat-row ${selectedChatId === chatId ? "active" : ""}`}
+                onClick={() => onSelectChat({ ...chat, id: chatId, name: chatName, avatar: chatAvatar, online: chatOnline })}
+              >
+                <div className="chat-avatar">
+                  {typeof chatAvatar === "string" && chatAvatar.startsWith("http") ? (
+                    <img src={chatAvatar} alt={chatName} className="chat-avatar-img" />
+                  ) : (
+                    <span>{chatAvatar}</span>
+                  )}
+                  <span className={`presence-dot ${chatOnline ? "online" : "offline"}`} />
+                </div>
 
-              <div className="chat-row-bottom">
-                <p>{chat.lastMessagePreview}</p>
-                {chat.unread > 0 ? <span className="unread-pill">{chat.unread}</span> : null}
-              </div>
-            </div>
-          </button>
-        ))}
+                <div className="chat-row-body">
+                  <div className="chat-row-top">
+                    <strong>{chatName}</strong>
+                    <span>{lastTime}</span>
+                  </div>
+
+                  <div className="chat-row-bottom">
+                    <p>{lastMessage}</p>
+                    {unread > 0 ? <span className="unread-pill">{unread}</span> : null}
+                  </div>
+                </div>
+              </button>
+            );
+          })
+        )}
       </div>
     </section>
   );
