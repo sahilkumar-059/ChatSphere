@@ -43,10 +43,9 @@ function normalizeUser(docSnap) {
 }
 
 function matchesSearch(user, term) {
+  // Search only by username (not email or full name)
   const username = (user.username || "").toLowerCase();
-  const fullName = (user.fullName || "").toLowerCase();
-  const email = (user.email || "").toLowerCase();
-  return username.includes(term) || fullName.includes(term) || email.includes(term);
+  return username.includes(term);
 }
 
 export async function searchUsers(searchTerm, currentUserId) {

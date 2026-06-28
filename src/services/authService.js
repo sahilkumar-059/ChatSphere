@@ -6,7 +6,7 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, collection } from "firebase/firestore";
+import { doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, collection } from "firebase/firestore";
 import { auth, db, provider } from "../firebase";
 
 const DEFAULT_BIO = "Building something better than chat apps.";
@@ -103,4 +103,51 @@ export async function logoutUser() {
     ).catch(() => {});
   }
   await signOut(auth);
+}
+
+// Check if a username is available
+export async function checkUsernameAvailability(username) {
+  const trimmedUsername = username.trim().toLowerCase();
+  const q = query(collection(db, "users"), where("username", "==", trimmedUsername));
+  const snapshot = await getDocs(q);
+  return snapshot.empty;
+}
+
+// Save username for a new user
+export async function saveUsername(user, username) {
+  const trimmedUsername = username.trim().toLowerCase();
+  
+  // Check availability again
+  const isAvailable = await checkUsernameAvailability(trimmedUsername);
+  if (!isAvailable) {
+    throw new Error("Username is already taken");
+  }
+
+  const userDoc = {
+    uid: user.uid,
+    fullName: user.displayName || "ChatSphere User",
+    username: trimmedUsername,
+    email: user.email || "",
+    photoURL: user.photoURL || "",
+    bio: DEFAULT_BIO,
+    isOnline: true,
+    lastSeen: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  };
+
+  await setDoc(doc(db, "users", user.uid), userDoc);
+  return userDoc;
+}
+
+// Update username for existing user
+export async function updateUsername(userId, newUsername) {
+  const trimmedUsername = newUsername.trim().toLowerCase();
+  
+  // Check availability
+  const isAvailable = await checkUsernameAvailability(trimmedUsername);
+  if (!isAvailable) {
+    throw new Error("Username is already taken");
+  }
+
+  await updateDoc(doc(db, "users", userId), { username: trimmedUsername, updatedAt: serverTimestamp() });
 }

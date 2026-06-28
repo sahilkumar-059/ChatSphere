@@ -9,6 +9,8 @@ import ChatWindow from "./components/ChatWindow";
 import Settings from "./components/Settings";
 import SearchFriendsModal from "./components/friends/SearchFriendsModal";
 import FriendRequestsPage from "./components/friends/FriendRequestsPage";
+import UsernameSetup from "./components/UsernameSetup";
+import EditUsernameModal from "./components/EditUsernameModal";
 import { subscribeFriendData } from "./services/friendService";
 import { getOrCreateChatRoom, sendMessage as sendChatMessage, subscribeToMessages, subscribeToUserChats } from "./services/chatService";
 import "./App.css";
@@ -52,6 +54,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showSearchFriends, setShowSearchFriends] = useState(false);
+  const [showUsernameSetup, setShowUsernameSetup] = useState(false);
+  const [showEditUsername, setShowEditUsername] = useState(false);
+  const [hasProfile, setHasProfile] = useState(false);
   const [friendData, setFriendData] = useState({
     friends: [],
     incoming: [],
@@ -126,19 +131,28 @@ export default function App() {
     const userRef = doc(db, "users", user.uid);
     const unsubscribe = onSnapshot(userRef, (snapshot) => {
       const data = snapshot.data() || {};
-      setProfile({
-        bio: data.bio || "Building something better than chat apps.",
-        username: data.username || "",
-      });
-      setSettings((current) => ({
-        ...current,
-        themeMode: data.themeMode || current.themeMode,
-        notificationsEnabled: typeof data.notificationsEnabled === "boolean" ? data.notificationsEnabled : current.notificationsEnabled,
-        readReceiptsEnabled: typeof data.readReceiptsEnabled === "boolean" ? data.readReceiptsEnabled : current.readReceiptsEnabled,
-        wallpaper: data.wallpaper || current.wallpaper,
-      }));
-      setOnline(Boolean(data.isOnline));
-      setLastSeen(data.lastSeen ? "a moment ago" : "just now");
+      
+      // Check if user has a profile (has username)
+      const userHasProfile = Boolean(data.username);
+      setHasProfile(userHasProfile);
+      
+      if (userHasProfile) {
+        setProfile({
+          bio: data.bio || "Building something better than chat apps.",
+          username: data.username || "",
+        });
+        setSettings((current) => ({
+          ...current,
+          themeMode: data.themeMode || current.themeMode,
+          notificationsEnabled: typeof data.notificationsEnabled === "boolean" ? data.notificationsEnabled : current.notificationsEnabled,
+          readReceiptsEnabled: typeof data.readReceiptsEnabled === "boolean" ? data.readReceiptsEnabled : current.readReceiptsEnabled,
+          wallpaper: data.wallpaper || current.wallpaper,
+        }));
+        setOnline(Boolean(data.isOnline));
+        setLastSeen(data.lastSeen ? "a moment ago" : "just now");
+      } else {
+        setShowUsernameSetup(true);
+      }
     });
 
     const markPresence = async (isOnline) => {
@@ -353,6 +367,24 @@ export default function App() {
   const currentPresence = online ? "Online now" : `Last seen ${lastSeen}`;
   const isFriendsView = activeTab === "Friends";
 
+  const handleUsernameSetupComplete = () => {
+    setShowUsernameSetup(false);
+    setHasProfile(true);
+  };
+
+  const handleEditUsername = () => {
+    setShowEditUsername(true);
+  };
+
+  const handleUsernameUpdate = (newUsername) => {
+    setProfile((prev) => ({ ...prev, username: newUsername }));
+  };
+
+  // Show username setup if user doesn't have a profile
+  if (showUsernameSetup && user) {
+    return <UsernameSetup user={user} onComplete={handleUsernameSetupComplete} />;
+  }
+
   return (
     <div className={`app-shell theme-${settings.themeMode}`}>
       <Sidebar
@@ -430,6 +462,7 @@ export default function App() {
           online={online}
           lastSeenLabel={lastSeen}
           onClose={() => setShowSettings(false)}
+          onEditUsername={handleEditUsername}
         />
       ) : null}
 
@@ -441,6 +474,15 @@ export default function App() {
             currentUsername: profile.username,
           }}
           onClose={() => setShowSearchFriends(false)}
+        />
+      ) : null}
+
+      {showEditUsername ? (
+        <EditUsernameModal
+          user={user}
+          currentUsername={profile.username}
+          onClose={() => setShowEditUsername(false)}
+          onUpdate={handleUsernameUpdate}
         />
       ) : null}
 
