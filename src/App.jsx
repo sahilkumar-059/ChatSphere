@@ -509,7 +509,7 @@ export default function App() {
   };
 
   const currentPresence = online ? "Online now" : `Last seen ${lastSeen}`;
-  const isFriendsView = activeTab === "Friends";
+  const isFriendsView = activeTab === "Friends"; // Merge resolved
 
   const handleUsernameSetupComplete = () => {
     setShowUsernameSetup(false);
