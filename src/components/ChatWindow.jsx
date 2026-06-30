@@ -19,6 +19,8 @@ export default function ChatWindow({
   messagesEndRef,
   onMarkSeen,
   currentUserPresence,
+  onStartVoiceCall,
+  onStartVideoCall,
 }) {
   const handleKeyDown = (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -64,10 +66,20 @@ export default function ChatWindow({
         </div>
 
         <div className="chat-window-tools">
-          <button className="icon-button" type="button" aria-label="Voice call">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Voice call"
+            onClick={onStartVoiceCall}
+          >
             📞
           </button>
-          <button className="icon-button" type="button" aria-label="Video call">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Video call"
+            onClick={onStartVideoCall}
+          >
             🎥
           </button>
           <button className="icon-button" type="button" aria-label="More options">

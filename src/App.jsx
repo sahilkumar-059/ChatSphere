@@ -11,8 +11,11 @@ import SearchFriendsModal from "./components/friends/SearchFriendsModal";
 import FriendRequestsPage from "./components/friends/FriendRequestsPage";
 import UsernameSetup from "./components/UsernameSetup";
 import EditUsernameModal from "./components/EditUsernameModal";
+import IncomingCallModal from "./components/IncomingCallModal";
+import CallWindow from "./components/CallWindow";
 import { subscribeFriendData } from "./services/friendService";
 import { getOrCreateChatRoom, sendMessage as sendChatMessage, subscribeToMessages, subscribeToUserChats } from "./services/chatService";
+import { initiateCall, subscribeToCall, subscribeToIceCandidates, addIceCandidate, setRemoteDescription, stopAllStreams, cleanupCall, generateCallId } from "./services/callService";
 import "./App.css";
 
 
@@ -77,11 +80,16 @@ export default function App() {
   const [dragPreview, setDragPreview] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [activeCall, setActiveCall] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [callState, setCallState] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const typingTimerRef = useRef(null);
+  const callUnsubscribeRef = useRef(null);
+  const iceCandidatesUnsubscribeRef = useRef(null);
 
   const currentChatId = selectedChat?.chatId || getChatId(user?.uid, selectedChat?.id || selectedChat?.friendId);
 
@@ -221,6 +229,86 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, selectedChat, isTyping]);
 
+  // Subscribe to incoming calls
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const callsRef = collection(db, "calls");
+    const q = query(callsRef, where("calleeId", "==", user.uid), where("status", "==", "calling"));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          const callData = change.doc.data();
+          
+          // Get caller's display name
+          getDoc(doc(db, "users", callData.callerId)).then((userDoc) => {
+            const callerData = userDoc.data();
+            setIncomingCall({
+              callId: change.doc.id,
+              ...callData,
+              callerDisplayName: callerData?.displayName || "Unknown",
+            });
+          });
+        }
+      });
+    });
+
+    return unsubscribe;
+  }, [user?.uid]);
+
+  // Subscribe to call state changes
+  useEffect(() => {
+    if (!activeCall?.callId) return;
+
+    if (callUnsubscribeRef.current) {
+      callUnsubscribeRef.current();
+    }
+
+    callUnsubscribeRef.current = subscribeToCall(activeCall.callId, (callData) => {
+      setCallState(callData);
+
+      if (callData?.answer && !callData.remoteDescriptionSet) {
+        setRemoteDescription(activeCall.callId, callData.answer);
+      }
+
+      if (callData?.status === "ended" || callData?.status === "rejected") {
+        setActiveCall(null);
+        setCallState(null);
+        stopAllStreams();
+        cleanupCall(activeCall.callId);
+      }
+    });
+
+    return () => {
+      if (callUnsubscribeRef.current) {
+        callUnsubscribeRef.current();
+      }
+    };
+  }, [activeCall?.callId]);
+
+  // Subscribe to ICE candidates
+  useEffect(() => {
+    if (!activeCall?.callId) return;
+
+    if (iceCandidatesUnsubscribeRef.current) {
+      iceCandidatesUnsubscribeRef.current();
+    }
+
+    iceCandidatesUnsubscribeRef.current = subscribeToIceCandidates(
+      activeCall.callId,
+      (candidate) => {
+        addIceCandidate(activeCall.callId, candidate);
+      }
+    );
+
+    return () => {
+      if (iceCandidatesUnsubscribeRef.current) {
+        iceCandidatesUnsubscribeRef.current();
+      }
+    };
+  }, [activeCall?.callId]);
+
   const filteredChats = useMemo(() => {
     const keyword = searchChats.trim().toLowerCase();
     return friendData.friends
@@ -281,6 +369,62 @@ export default function App() {
     setTypingUser(selectedChat?.name || "");
     clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => setIsTyping(false), 1200);
+  };
+
+  const startCall = async (isVideoCall = true) => {
+    if (!user || !selectedChat) return;
+
+    try {
+      const callId = generateCallId(user.uid, selectedChat.id || selectedChat.friendId);
+      
+      await initiateCall(
+        callId,
+        user.uid,
+        selectedChat.id || selectedChat.friendId,
+        selectedChat.name,
+        isVideoCall
+      );
+
+      setActiveCall({
+        callId,
+        isInitiator: true,
+        remoteName: selectedChat.name,
+        videoEnabled: isVideoCall,
+      });
+    } catch (error) {
+      console.error("Error starting call:", error);
+      alert("Failed to start call. Please try again.");
+    }
+  };
+
+  const handleAcceptCall = async () => {
+    if (!incomingCall) return;
+
+    try {
+      setActiveCall({
+        callId: incomingCall.callId,
+        isInitiator: false,
+        remoteName: incomingCall.callerDisplayName,
+        videoEnabled: incomingCall.videoEnabled || true,
+      });
+      setIncomingCall(null);
+    } catch (error) {
+      console.error("Error accepting call:", error);
+      alert("Failed to accept call. Please try again.");
+    }
+  };
+
+  const handleRejectCall = () => {
+    setIncomingCall(null);
+  };
+
+  const handleCallEnd = async () => {
+    if (activeCall?.callId) {
+      stopAllStreams();
+      cleanupCall(activeCall.callId);
+    }
+    setActiveCall(null);
+    setCallState(null);
   };
 
   const sendMessage = async ({ text, type = "text", imageUrl = "", audioUrl = "" } = {}) => {
@@ -442,6 +586,8 @@ export default function App() {
               messagesEndRef={messagesEndRef}
               onMarkSeen={handleMarkSeen}
               currentUserPresence={currentPresence}
+              onStartVoiceCall={() => startCall(false)}
+              onStartVideoCall={() => startCall(true)}
             />
           </>
         )}
@@ -483,6 +629,26 @@ export default function App() {
           currentUsername={profile.username}
           onClose={() => setShowEditUsername(false)}
           onUpdate={handleUsernameUpdate}
+        />
+      ) : null}
+
+      {incomingCall ? (
+        <IncomingCallModal
+          call={incomingCall}
+          callerId={incomingCall.callerId}
+          callerName={incomingCall.callerDisplayName}
+          onAccept={handleAcceptCall}
+          onReject={handleRejectCall}
+        />
+      ) : null}
+
+      {activeCall ? (
+        <CallWindow
+          call={callState}
+          callId={activeCall.callId}
+          remoteName={activeCall.remoteName}
+          videoEnabled={activeCall.videoEnabled}
+          onCallEnd={handleCallEnd}
         />
       ) : null}
 
