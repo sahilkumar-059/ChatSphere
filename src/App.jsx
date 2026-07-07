@@ -495,8 +495,7 @@ export default function App() {
     };
 
     setMessages((currentMessages) => {
-      const remainingMessages = currentMessages.filter((message) => message.chatId !== chatId);
-      return [...remainingMessages, optimisticMessage];
+      return [...currentMessages, optimisticMessage];
     });
 
     try {
@@ -683,4 +682,4 @@ export default function App() {
     </div>
   );
 }
- 
+  
