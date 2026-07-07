@@ -39,7 +39,7 @@ export default function EditUsernameModal({ user, currentUsername, onClose, onUp
       try {
         const isAvailable = await checkUsernameAvailability(trimmed);
         setAvailability(isAvailable ? "available" : "taken");
-      } catch (err) {
+      } catch {
         setError("Failed to check username availability");
       } finally {
         setLoading(false);

@@ -1,4 +1,4 @@
-export default function ProfileCard({ user, profile, onBioChange, online, lastSeenLabel, onEditUsername }) {
+export default function ProfileCard({ user, profile, onBioChange, online, lastSeenLabel }) {
   const handleCopyUsername = () => {
     if (profile.username) {
       navigator.clipboard.writeText(`@${profile.username}`);
@@ -18,9 +18,6 @@ export default function ProfileCard({ user, profile, onBioChange, online, lastSe
           <span className="profile-username">@{profile.username || "No username"}</span>
           <button className="icon-button small" onClick={handleCopyUsername} aria-label="Copy username">
             📋
-          </button>
-          <button className="icon-button small" onClick={onEditUsername} aria-label="Edit username">
-            ✏️
           </button>
         </div>
         <span>{online ? "Online now" : lastSeenLabel}</span>

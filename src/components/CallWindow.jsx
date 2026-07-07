@@ -7,7 +7,7 @@ import {
   endCall,
 } from "../services/callService";
 
-export default function CallWindow({ call, callId, remoteName, onCallEnd, videoEnabled: initialVideoEnabled = true }) {
+export default function CallWindow({ callId, remoteName, onCallEnd, videoEnabled: initialVideoEnabled = true }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const [isVideoEnabled, setIsVideoEnabled] = useState(initialVideoEnabled);
@@ -74,27 +74,27 @@ export default function CallWindow({ call, callId, remoteName, onCallEnd, videoE
     setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    setPosition({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y,
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
   useEffect(() => {
-    if (isDragging) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
-      return () => {
-        window.removeEventListener("mousemove", handleMouseMove);
-        window.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
+    if (!isDragging) return undefined;
+
+    const handleMouseMove = (e) => {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
   }, [isDragging, dragStart]);
 
   return (

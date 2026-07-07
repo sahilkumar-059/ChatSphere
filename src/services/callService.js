@@ -5,8 +5,6 @@ import {
   onSnapshot, 
   deleteDoc, 
   collection, 
-  query, 
-  where, 
   getDocs,
   updateDoc 
 } from "firebase/firestore";
@@ -21,7 +19,7 @@ let localStream = null;
 let peerConnections = new Map();
 
 // Create or get peer connection
-export async function createPeerConnection(callId, isInitiator = false) {
+export async function createPeerConnection(callId) {
   if (peerConnections.has(callId)) {
     return peerConnections.get(callId);
   }
@@ -241,7 +239,7 @@ export function getLocalStream_Element() {
 
 // Toggle video
 export async function toggleVideo(callId, enabled) {
-  if (localStream) {
+  if (callId && localStream) {
     localStream.getVideoTracks().forEach((track) => {
       track.enabled = enabled;
     });
@@ -250,7 +248,7 @@ export async function toggleVideo(callId, enabled) {
 
 // Toggle audio
 export async function toggleAudio(callId, enabled) {
-  if (localStream) {
+  if (callId && localStream) {
     localStream.getAudioTracks().forEach((track) => {
       track.enabled = enabled;
     });

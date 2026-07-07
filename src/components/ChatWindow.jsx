@@ -13,6 +13,7 @@ export default function ChatWindow({
   onImageUpload,
   onDropFiles,
   onDragOver,
+  onDragLeave,
   dragPreview,
   onRecordToggle,
   isRecording,
@@ -45,6 +46,7 @@ export default function ChatWindow({
     <section
       className="chat-window-shell"
       onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
       onDrop={(event) => {
         event.preventDefault();
         onDropFiles(event.dataTransfer.files);

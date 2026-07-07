@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { acceptCall, rejectCall } from "../services/callService";
 
-export default function IncomingCallModal({ call, callerId, callerName, onAccept, onReject }) {
+export default function IncomingCallModal({ call, callerName, onAccept, onReject }) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleAccept = async () => {

@@ -1,12 +1,11 @@
 export default function ChatList({
   chats,
-  friends,
   searchChats,
   onSearchChats,
   selectedChatId,
   onSelectChat,
 }) {
-  const displayChats = friends && friends.length > 0 ? friends : chats;
+  const displayChats = Array.isArray(chats) ? chats : [];
 
   return (
     <section className="chat-list-shell">
@@ -34,7 +33,8 @@ export default function ChatList({
           </div>
         ) : (
           displayChats.map((chat) => {
-            const chatId = chat.id || chat.friendId;
+            const chatId = chat.chatId || chat.id || chat.friendId;
+            const friendId = chat.friendId || chat.id;
             const chatName = chat.name || chat.friendFullName;
             const chatAvatar = chat.avatar || chat.friendPhotoURL || chat.friendFullName?.charAt(0) || "?";
             const chatOnline = chat.online !== undefined ? chat.online : false;
@@ -46,7 +46,17 @@ export default function ChatList({
               <button
                 key={chatId}
                 className={`chat-row ${selectedChatId === chatId ? "active" : ""}`}
-                onClick={() => onSelectChat({ ...chat, id: chatId, name: chatName, avatar: chatAvatar, online: chatOnline })}
+                onClick={() =>
+                  onSelectChat({
+                    ...chat,
+                    id: friendId,
+                    friendId,
+                    chatId,
+                    name: chatName,
+                    avatar: chatAvatar,
+                    online: chatOnline,
+                  })
+                }
               >
                 <div className="chat-avatar">
                   {typeof chatAvatar === "string" && chatAvatar.startsWith("http") ? (

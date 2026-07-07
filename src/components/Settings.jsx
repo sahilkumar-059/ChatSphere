@@ -20,7 +20,6 @@ export default function Settings({
   online,
   lastSeenLabel,
   onClose,
-  onEditUsername,
 }) {
   return (
     <div className="settings-page">
@@ -40,7 +39,6 @@ export default function Settings({
           user={user}
           profile={profile}
           onBioChange={(bio) => onProfileChange({ ...profile, bio })}
-          onEditUsername={onEditUsername}
           online={online}
           lastSeenLabel={lastSeenLabel}
         />

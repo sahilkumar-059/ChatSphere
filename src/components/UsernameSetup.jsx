@@ -33,7 +33,7 @@ export default function UsernameSetup({ user, onComplete }) {
       try {
         const isAvailable = await checkUsernameAvailability(trimmed);
         setAvailability(isAvailable ? "available" : "taken");
-      } catch (err) {
+      } catch {
         setError("Failed to check username availability");
       } finally {
         setLoading(false);

@@ -1,6 +1,7 @@
 const navItems = [
   { id: "Home", icon: "🏠" },
   { id: "Chats", icon: "💬" },
+  { id: "Friends", icon: "👥" },
   { id: "Calls", icon: "📞" },
   { id: "Notifications", icon: "🔔" },
   { id: "Settings", icon: "⚙️" },
@@ -52,6 +53,7 @@ export default function Sidebar({
         <button type="button" className="sidebar-search-friends" onClick={onOpenSearchFriends}>
           <span className="nav-icon">🔍</span>
           <span>Search Friends</span>
+          {incomingFriendCount > 0 ? <span className="nav-badge">{incomingFriendCount}</span> : null}
         </button>
 
         {otherNavItems.map((item) => (
@@ -68,6 +70,9 @@ export default function Sidebar({
           >
             <span className="nav-icon">{item.icon}</span>
             <span>{item.id}</span>
+            {item.id === "Friends" && incomingFriendCount > 0 ? (
+              <span className="nav-badge">{incomingFriendCount}</span>
+            ) : null}
             {item.id === "Notifications" && unreadCount > 0 ? (
               <span className="nav-badge">{unreadCount}</span>
             ) : null}

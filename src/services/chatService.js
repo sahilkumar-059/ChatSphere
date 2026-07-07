@@ -42,6 +42,8 @@ export async function getOrCreateChatRoom(userId1, userId2) {
 
 // Send a message to a chat room
 export async function sendMessage(chatId, messageData) {
+  console.log("chatService: Sending message to chatId:", chatId, "data:", messageData);
+  
   const messagesRef = collection(db, "messages");
   const messagePayload = {
     ...messageData,
@@ -51,6 +53,7 @@ export async function sendMessage(chatId, messageData) {
   };
 
   const messageDoc = await addDoc(messagesRef, messagePayload);
+  console.log("chatService: Message sent with ID:", messageDoc.id);
 
   // Update chat room with last message info
   const chatRef = doc(db, "chats", chatId);
@@ -72,9 +75,29 @@ export async function sendMessage(chatId, messageData) {
   return messageDoc.id;
 }
 
+// Load all messages for a chat room once
+export async function loadMessages(chatId) {
+  if (!chatId) return [];
+
+  const messagesQuery = query(
+    collection(db, "messages"),
+    where("chatId", "==", chatId),
+    orderBy("createdAt", "asc")
+  );
+
+  const snapshot = await getDocs(messagesQuery);
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+    timeLabel: formatTimeLabel(doc.data().createdAt),
+  }));
+}
+
 // Subscribe to messages for a specific chat
 export function subscribeToMessages(chatId, onMessagesUpdate) {
   if (!chatId) return () => {};
+
+  console.log("chatService: Subscribing to messages for chatId:", chatId);
 
   const messagesQuery = query(
     collection(db, "messages"),
@@ -83,12 +106,23 @@ export function subscribeToMessages(chatId, onMessagesUpdate) {
   );
 
   return onSnapshot(messagesQuery, (snapshot) => {
+    console.log("chatService: Firestore snapshot received");
+    console.log("chatService: Snapshot size:", snapshot.docs.length);
+    console.log("chatService: Querying for chatId:", chatId);
+    
+    snapshot.docs.forEach((doc) => {
+      console.log("chatService: Message doc:", doc.id, "data.chatId:", doc.data().chatId);
+    });
+    
     const messages = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
       timeLabel: formatTimeLabel(doc.data().createdAt),
     }));
+    console.log("chatService: Processed messages:", messages);
     onMessagesUpdate(messages);
+  }, (error) => {
+    console.error("chatService: Subscription error:", error);
   });
 }
 

@@ -12,6 +12,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { getOrCreateChatRoom } from "./chatService";
 
 export const RELATIONSHIP = {
   NONE: "none",
@@ -43,9 +44,11 @@ function normalizeUser(docSnap) {
 }
 
 function matchesSearch(user, term) {
-  // Search only by username (not email or full name)
+  // Search by username, display name, or email
   const username = (user.username || "").toLowerCase();
-  return username.includes(term);
+  const fullName = (user.fullName || user.displayName || "").toLowerCase();
+  const email = (user.email || "").toLowerCase();
+  return username.includes(term) || fullName.includes(term) || email.includes(term);
 }
 
 export async function searchUsers(searchTerm, currentUserId) {
@@ -136,6 +139,9 @@ export async function acceptFriendRequest(request) {
     friendPhotoURL: toPhotoURL,
     createdAt: now,
   });
+
+  // Automatically create a chat room for the new friends
+  await getOrCreateChatRoom(fromUserId, toUserId);
 }
 
 export async function rejectFriendRequest(requestId) {
@@ -181,7 +187,7 @@ export function subscribeFriendData(userId, onData) {
     
     // Subscribe to online status for each friend
     friends.forEach((friend) => {
-      if (!friendsOnlineStatus.hasOwnProperty(friend.friendId)) {
+      if (!Object.prototype.hasOwnProperty.call(friendsOnlineStatus, friend.friendId)) {
         const userRef = doc(db, "users", friend.friendId);
         onSnapshot(userRef, (userSnap) => {
           const userData = userSnap.data();
