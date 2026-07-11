@@ -1,7 +1,15 @@
-export default function ProfileCard({ user, profile, onBioChange, online, lastSeenLabel }) {
+export default function ProfileCard({ user, profile, onBioChange, online, lastSeenLabel, onOpenUsernameSetup, onOpenEditUsername }) {
   const handleCopyUsername = () => {
     if (profile.username) {
       navigator.clipboard.writeText(`@${profile.username}`);
+    }
+  };
+
+  const handleUsernameClick = () => {
+    if (profile.username) {
+      onOpenEditUsername?.();
+    } else {
+      onOpenUsernameSetup?.();
     }
   };
 
@@ -15,7 +23,7 @@ export default function ProfileCard({ user, profile, onBioChange, online, lastSe
       <div className="profile-copy">
         <h3>{user?.displayName || "Guest user"}</h3>
         <div className="profile-username-row">
-          <span className="profile-username">@{profile.username || "No username"}</span>
+          <span className="profile-username clickable" onClick={handleUsernameClick}>@{profile.username || "No username"}</span>
           <button className="icon-button small" onClick={handleCopyUsername} aria-label="Copy username">
             📋
           </button>

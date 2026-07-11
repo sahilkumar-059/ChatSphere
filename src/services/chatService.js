@@ -5,7 +5,6 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -81,16 +80,22 @@ export async function loadMessages(chatId) {
 
   const messagesQuery = query(
     collection(db, "messages"),
-    where("chatId", "==", chatId),
-    orderBy("createdAt", "asc")
+    where("chatId", "==", chatId)
   );
 
   const snapshot = await getDocs(messagesQuery);
-  return snapshot.docs.map((doc) => ({
+  const messages = snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
     timeLabel: formatTimeLabel(doc.data().createdAt),
   }));
+  // Sort client-side to avoid needing a composite Firestore index
+  messages.sort((a, b) => {
+    const aTime = a.createdAt?.toMillis?.() || a.createdAt?.getTime?.() || 0;
+    const bTime = b.createdAt?.toMillis?.() || b.createdAt?.getTime?.() || 0;
+    return aTime - bTime;
+  });
+  return messages;
 }
 
 // Subscribe to messages for a specific chat
@@ -99,10 +104,11 @@ export function subscribeToMessages(chatId, onMessagesUpdate) {
 
   console.log("chatService: Subscribing to messages for chatId:", chatId);
 
+  // NOTE: No orderBy() here to avoid requiring a composite Firestore index.
+  // Messages are sorted client-side in the snapshot callback.
   const messagesQuery = query(
     collection(db, "messages"),
-    where("chatId", "==", chatId),
-    orderBy("createdAt", "asc")
+    where("chatId", "==", chatId)
   );
 
   return onSnapshot(messagesQuery, (snapshot) => {
@@ -119,6 +125,12 @@ export function subscribeToMessages(chatId, onMessagesUpdate) {
       ...doc.data(),
       timeLabel: formatTimeLabel(doc.data().createdAt),
     }));
+    // Sort client-side to avoid needing a composite Firestore index
+    messages.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() || a.createdAt?.getTime?.() || 0;
+      const bTime = b.createdAt?.toMillis?.() || b.createdAt?.getTime?.() || 0;
+      return aTime - bTime;
+    });
     console.log("chatService: Processed messages:", messages);
     onMessagesUpdate(messages);
   }, (error) => {

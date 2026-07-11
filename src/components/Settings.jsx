@@ -1,4 +1,4 @@
-import ProfileCard from "./ProfileCard";
+import ProfileEditor from "./ProfileEditor";
 
 const wallpapers = [
   { id: "aurora", label: "Aurora" },
@@ -17,30 +17,18 @@ export default function Settings({
   onWallpaperChange,
   onSaveProfile,
   onLogout,
-  online,
-  lastSeenLabel,
   onClose,
 }) {
   return (
     <div className="settings-page">
       <section className="settings-panel">
-        <div className="settings-header">
-          <div>
-            <p className="eyebrow">Settings</p>
-            <h2>Personalize ChatSphere</h2>
-          </div>
-
-          <button className="icon-button" onClick={onClose} aria-label="Close settings">
-            ✕
-          </button>
-        </div>
-
-        <ProfileCard
+        {/* Profile Editor replaces old ProfileCard */}
+        <ProfileEditor
           user={user}
           profile={profile}
-          onBioChange={(bio) => onProfileChange({ ...profile, bio })}
-          online={online}
-          lastSeenLabel={lastSeenLabel}
+          onProfileChange={onProfileChange}
+          onSave={onSaveProfile}
+          onClose={onClose}
         />
 
         <div className="settings-grid">
@@ -89,10 +77,6 @@ export default function Settings({
         </div>
 
         <div className="settings-footer">
-          <button className="primary-button" onClick={onSaveProfile}>
-            Save Profile
-          </button>
-
           <div className="account-card">
             <strong>Account</strong>
             <span>{user?.uid || "No account connected"}</span>

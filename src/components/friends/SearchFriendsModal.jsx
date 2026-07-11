@@ -7,7 +7,7 @@ import {
 } from "../../services/friendService";
 import "../../styles/Friends.css";
 
-export default function SearchFriendsModal({ user, friendData, onClose }) {
+export default function SearchFriendsModal({ user, friendData, onClose, inline }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -66,6 +66,73 @@ export default function SearchFriendsModal({ user, friendData, onClose }) {
       setActionUserId("");
     }
   };
+
+  if (inline) {
+    return (
+      <section className="friends-panel search-friends-panel inline">
+        <div className="friends-panel-header">
+          <div>
+            <p className="eyebrow">Discover</p>
+            <h2>Search Friends</h2>
+            <p className="friends-subtitle">Find people by username, name, or email.</p>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Close search">
+            ✕
+          </button>
+        </div>
+
+        <div className="friends-search-wrap">
+          <span className="friends-search-icon" aria-hidden="true">
+            🔍
+          </span>
+          <input
+            className="friends-search-input"
+            type="search"
+            placeholder="Search by username, name, or email…"
+            value={searchTerm}
+            onChange={(event) => {
+              const nextTerm = event.target.value;
+              setSearchTerm(nextTerm);
+              if (nextTerm.trim().length < 2) {
+                setResults([]);
+                setSearching(false);
+              }
+            }}
+            autoFocus
+          />
+        </div>
+
+        {error ? <div className="friends-message error">{error}</div> : null}
+
+        <div className="friends-results">
+          {searching ? (
+            <div className="friends-empty-state">
+              <span className="friends-spinner" aria-hidden="true" />
+              <p>Searching users…</p>
+            </div>
+          ) : searchTerm.trim().length < 2 ? (
+            <div className="friends-empty-state">
+              <p>Type at least 2 characters to search.</p>
+            </div>
+          ) : results.length === 0 ? (
+            <div className="friends-empty-state">
+              <p>No users found matching &ldquo;{searchTerm}&rdquo;</p>
+            </div>
+          ) : (
+            results.map((result) => (
+              <UserResultCard
+                key={result.uid}
+                user={result}
+                relationship={getRelationshipStatus(result.uid, relationshipContext)}
+                onAddFriend={handleAddFriend}
+                loading={actionUserId === result.uid}
+              />
+            ))
+          )}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div className="friends-overlay" onClick={onClose}>

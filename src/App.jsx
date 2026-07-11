@@ -7,6 +7,8 @@ import Sidebar from "./components/Sidebar";
 import ChatList from "./components/ChatList";
 import ChatWindow from "./components/ChatWindow";
 import Settings from "./components/Settings";
+import UsernameSetup from "./components/UsernameSetup";
+import EditUsernameModal from "./components/EditUsernameModal";
 import SearchFriendsModal from "./components/friends/SearchFriendsModal";
 import FriendRequestsPage from "./components/friends/FriendRequestsPage";
 import IncomingCallModal from "./components/IncomingCallModal";
@@ -14,6 +16,8 @@ import CallWindow from "./components/CallWindow";
 import { subscribeFriendData } from "./services/friendService";
 import { getOrCreateChatRoom, loadMessages, sendMessage as sendChatMessage, subscribeToMessages, subscribeToUserChats } from "./services/chatService";
 import { initiateCall, subscribeToCall, subscribeToIceCandidates, addIceCandidate, setRemoteDescription, stopAllStreams, cleanupCall, generateCallId } from "./services/callService";
+import { createCallRecord, markCallAnswered, markCallRejected, markCallEnded, markCallCancelled, markCallMissed } from "./services/callHistoryService";
+import CallsPage from "./components/CallsPage";
 import "./App.css";
 
 
@@ -49,12 +53,14 @@ const readStoredSettings = () => {
 
 export default function App() {
   const { user, logout } = useAuth();
-  const [profile, setProfile] = useState({ bio: "Building something better than chat apps.", username: "" });
+  const [profile, setProfile] = useState({ bio: "Building something better than chat apps.", username: "", displayName: "", phone: "", status: "online", photoURL: "" });
   const [settings, setSettings] = useState(readStoredSettings);
   const [activeTab, setActiveTab] = useState("Chats");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showSearchFriends, setShowSearchFriends] = useState(false);
+  const [showUsernameSetup, setShowUsernameSetup] = useState(false);
+  const [showEditUsername, setShowEditUsername] = useState(false);
   const [friendData, setFriendData] = useState({
     friends: [],
     incoming: [],
@@ -144,6 +150,10 @@ export default function App() {
       setProfile({
         bio: data.bio || "Building something better than chat apps.",
         username: data.username || "",
+        displayName: data.displayName || user?.displayName || "",
+        phone: data.phone || "",
+        status: data.status || "online",
+        photoURL: data.photoURL || user?.photoURL || "",
       });
       setSettings((current) => ({
         ...current,
@@ -258,17 +268,64 @@ export default function App() {
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
+        const callData = change.doc.data();
+        
         if (change.type === "added") {
-          const callData = change.doc.data();
-          
           // Get caller's display name
           getDoc(doc(db, "users", callData.callerId)).then((userDoc) => {
             const callerData = userDoc.data();
-            setIncomingCall({
-              callId: change.doc.id,
-              ...callData,
-              callerDisplayName: callerData?.displayName || "Unknown",
+            // Get receiver's (current user's) display name
+            getDoc(doc(db, "users", user.uid)).then((myUserDoc) => {
+              const myData = myUserDoc.data();
+              
+              // If the caller did NOT create a call history record, create one for the receiver
+              let recordPromise;
+              if (callData.callHistoryRecordId) {
+                recordPromise = Promise.resolve(callData.callHistoryRecordId);
+              } else {
+                recordPromise = createCallRecord({
+                  callerId: callData.callerId,
+                  receiverId: user.uid,
+                  callerName: callerData?.displayName || callerData?.username || "Unknown",
+                  receiverName: myData?.displayName || myData?.username || user.displayName || "Unknown",
+                  callerPhoto: callerData?.photoURL || "",
+                  receiverPhoto: myData?.photoURL || "",
+                  callType: callData.videoEnabled ? "video" : "voice",
+                  direction: "incoming",
+                });
+              }
+              
+              recordPromise.then((recordId) => {
+                setIncomingCall((prev) => {
+                  // Only set if we haven't already dismissed it
+                  if (prev === null || prev.callId === change.doc.id) {
+                    return {
+                      callId: change.doc.id,
+                      callHistoryRecordId: recordId,
+                      ...callData,
+                      callerDisplayName: callerData?.displayName || callerData?.username || "Unknown",
+                    };
+                  }
+                  return prev;
+                });
+              });
             });
+          });
+        } else if (change.type === "modified" && callData?.status !== "calling") {
+          // Caller cancelled or ended while ringing -> mark as missed
+          setIncomingCall((prev) => {
+            if (prev && prev.callId === change.doc.id && prev.callHistoryRecordId) {
+              markCallMissed(prev.callHistoryRecordId);
+            }
+            return null;
+          });
+        } else if (change.type === "removed") {
+          // Caller deleted the signaling doc without answering -> missed
+          setIncomingCall((prev) => {
+            if (prev && prev.callId === change.doc.id && prev.callHistoryRecordId) {
+              markCallMissed(prev.callHistoryRecordId);
+            }
+            return null;
           });
         }
       });
@@ -292,7 +349,21 @@ export default function App() {
         setRemoteDescription(activeCall.callId, callData.answer);
       }
 
-      if (callData?.status === "ended" || callData?.status === "rejected") {
+      if (callData?.status === "ended") {
+        // Update history on end
+        if (activeCall.callHistoryRecordId) {
+          markCallEnded(activeCall.callHistoryRecordId);
+        }
+        setActiveCall(null);
+        setCallState(null);
+        stopAllStreams();
+        cleanupCall(activeCall.callId);
+      } else if (callData?.status === "rejected") {
+        // Only caller sees this - the receiver already marked as rejected
+        // If the caller hasn't already marked it, do it here
+        if (activeCall.callHistoryRecordId) {
+          markCallRejected(activeCall.callHistoryRecordId);
+        }
         setActiveCall(null);
         setCallState(null);
         stopAllStreams();
@@ -376,6 +447,14 @@ export default function App() {
     setShowSettings(true);
   };
 
+  const openUsernameSetup = () => {
+    setShowUsernameSetup(true);
+  };
+
+  const openEditUsername = () => {
+    setShowEditUsername(true);
+  };
+
   const updateProfile = (nextProfile) => setProfile(nextProfile);
 
   const updateSettings = (patch) => setSettings((current) => ({ ...current, ...patch }));
@@ -403,16 +482,39 @@ export default function App() {
     try {
       const callId = generateCallId(user.uid, selectedChat.id || selectedChat.friendId);
       
+      // Create call history record FIRST
+      const friendId = selectedChat.id || selectedChat.friendId;
+      const friendInfo = friendData.friends.find(f => f.friendId === friendId);
+      
+      const historyRecordId = await createCallRecord({
+        callerId: user.uid,
+        receiverId: friendId,
+        callerName: user.displayName || profile.username || "Unknown",
+        receiverName: selectedChat.name || friendInfo?.friendFullName || "Unknown",
+        callerPhoto: user.photoURL || "",
+        receiverPhoto: friendInfo?.friendPhotoURL || "",
+        callType: isVideoCall ? "video" : "voice",
+        direction: "outgoing",
+      });
+
       await initiateCall(
         callId,
         user.uid,
-        selectedChat.id || selectedChat.friendId,
+        friendId,
         selectedChat.name,
         isVideoCall
       );
 
+      // Store the history record ID in the signaling doc so the receiver can use it
+      if (historyRecordId) {
+        await updateDoc(doc(db, "calls", callId), {
+          callHistoryRecordId: historyRecordId,
+        });
+      }
+
       setActiveCall({
         callId,
+        callHistoryRecordId: historyRecordId,
         isInitiator: true,
         remoteName: selectedChat.name,
         videoEnabled: isVideoCall,
@@ -426,8 +528,14 @@ export default function App() {
     if (!incomingCall) return;
 
     try {
+      // Mark the call as answered in history
+      if (incomingCall.callHistoryRecordId) {
+        await markCallAnswered(incomingCall.callHistoryRecordId);
+      }
+
       setActiveCall({
         callId: incomingCall.callId,
+        callHistoryRecordId: incomingCall.callHistoryRecordId,
         isInitiator: false,
         remoteName: incomingCall.callerDisplayName,
         videoEnabled: incomingCall.videoEnabled || true,
@@ -439,11 +547,17 @@ export default function App() {
   };
 
   const handleRejectCall = () => {
+    if (incomingCall?.callHistoryRecordId) {
+      markCallRejected(incomingCall.callHistoryRecordId);
+    }
     setIncomingCall(null);
   };
 
   const handleCallEnd = async () => {
     if (activeCall?.callId) {
+      if (activeCall.callHistoryRecordId) {
+        await markCallEnded(activeCall.callHistoryRecordId);
+      }
       stopAllStreams();
       cleanupCall(activeCall.callId);
     }
@@ -451,12 +565,14 @@ export default function App() {
     setCallState(null);
   };
 
-  const sendMessage = async ({ text, type = "text", imageUrl = "", audioUrl = "" } = {}) => {
+  const sendMessage = async (options = {}) => {
     if (!user || !selectedChat) {
       console.error("sendMessage: Missing user or selectedChat", { user, selectedChat });
       return;
     }
     
+    // Handle case where React click event is passed instead of options object
+    const { text, type = "text", imageUrl = "", audioUrl = "" } = options?.nativeEvent ? {} : options;
     const resolvedText = typeof text === "string" ? text : messageInput;
     if (!resolvedText.trim() && !imageUrl && !audioUrl) return;
 
@@ -567,6 +683,7 @@ export default function App() {
 
   const currentPresence = online ? "Online now" : `Last seen ${lastSeen}`;
   const isFriendsView = activeTab === "Friends";
+  const isCallsView = activeTab === "Calls";
 
   return (
     <div className={`app-shell theme-${settings.themeMode}`}>
@@ -583,12 +700,27 @@ export default function App() {
         incomingFriendCount={friendData.incoming.length}
       />
 
-      <div className={`app-content ${isFriendsView ? "friends-active" : ""}`}>
+      <div className={`app-content ${isFriendsView ? "friends-active" : ""} ${isCallsView ? "calls-active" : ""}`}>
         {isFriendsView ? (
-          <FriendRequestsPage
-            friendData={friendData}
-            onOpenSearch={() => setShowSearchFriends(true)}
-          />
+          <div className="friends-layout">
+            <FriendRequestsPage
+              friendData={friendData}
+              onOpenSearch={() => setShowSearchFriends(true)}
+            />
+            {showSearchFriends ? (
+              <SearchFriendsModal
+                user={user}
+                friendData={{
+                  ...friendData,
+                  currentUsername: profile.username,
+                }}
+                onClose={() => setShowSearchFriends(false)}
+                inline
+              />
+            ) : null}
+          </div>
+        ) : isCallsView ? (
+          <CallsPage user={user} />
         ) : (
           <>
             <ChatList
@@ -643,13 +775,11 @@ export default function App() {
           onWallpaperChange={(wallpaper) => updateSettings({ wallpaper })}
           onSaveProfile={saveProfile}
           onLogout={handleLogout}
-          online={online}
-          lastSeenLabel={lastSeen}
           onClose={() => setShowSettings(false)}
         />
       ) : null}
 
-      {showSearchFriends ? (
+      {showSearchFriends && !isFriendsView ? (
         <SearchFriendsModal
           user={user}
           friendData={{
@@ -675,6 +805,34 @@ export default function App() {
           remoteName={activeCall.remoteName}
           videoEnabled={activeCall.videoEnabled}
           onCallEnd={handleCallEnd}
+        />
+      ) : null}
+
+      {showUsernameSetup ? (
+        <UsernameSetup
+          user={user}
+          onComplete={() => {
+            setShowUsernameSetup(false);
+            // Reload profile to get the new username
+            if (user) {
+              getDoc(doc(db, "users", user.uid)).then((snap) => {
+                if (snap.exists()) {
+                  setProfile((prev) => ({ ...prev, username: snap.data().username || "" }));
+                }
+              });
+            }
+          }}
+        />
+      ) : null}
+
+      {showEditUsername ? (
+        <EditUsernameModal
+          user={user}
+          currentUsername={profile.username}
+          onClose={() => setShowEditUsername(false)}
+          onUpdate={(newUsername) => {
+            setProfile((prev) => ({ ...prev, username: newUsername }));
+          }}
         />
       ) : null}
 

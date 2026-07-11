@@ -1,3 +1,27 @@
+.friends-layout {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+  animation: friendsSlideUp 0.35s ease;
+}
+
+.friends-panel.inline {
+  width: 100%;
+  max-height: min(88vh, 900px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 30px;
+  padding: 24px;
+  background: rgba(8, 11, 27, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
 .friends-overlay {
   position: absolute;
   inset: 0;
@@ -367,12 +391,17 @@
 }
 
 @media (max-width: 900px) {
+  .friends-layout {
+    grid-template-columns: 1fr;
+  }
+
   .friends-overlay {
     padding: 12px;
   }
 
   .friends-panel,
-  .friends-page-panel {
+  .friends-page-panel,
+  .friends-panel.inline {
     padding: 18px;
     border-radius: 24px;
   }
