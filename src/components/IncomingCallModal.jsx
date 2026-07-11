@@ -7,7 +7,7 @@ export default function IncomingCallModal({ call, callerName, onAccept, onReject
   const handleAccept = async () => {
     setIsProcessing(true);
     try {
-      await acceptCall(call.callId, call.offer, call.videoEnabled || true);
+      await acceptCall(call.callId, call.offer, call.videoEnabled);
       onAccept();
     } catch (error) {
       console.error("Error accepting call:", error);

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   getRemoteStream,
   getLocalStream_Element,
+  subscribeToRemoteStream,
   toggleVideo,
   toggleAudio,
   endCall,
@@ -27,10 +28,17 @@ export default function CallWindow({ callId, remoteName, onCallEnd, videoEnabled
 
   // Set up remote video
   useEffect(() => {
+    const setRemoteVideo = (remoteStream) => {
+      if (remoteStream && remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+    };
+
     const remoteStream = getRemoteStream(callId);
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
+    setRemoteVideo(remoteStream);
+
+    const unsubscribe = subscribeToRemoteStream(callId, setRemoteVideo);
+    return unsubscribe;
   }, [callId]);
 
   // Update call duration

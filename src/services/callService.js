@@ -17,6 +17,33 @@ const iceServers = [
 
 let localStream = null;
 let peerConnections = new Map();
+let remoteStreams = new Map();
+let remoteStreamListeners = new Map();
+
+function notifyRemoteStream(callId, stream) {
+  remoteStreams.set(callId, stream);
+  const listeners = remoteStreamListeners.get(callId) || [];
+  listeners.forEach((callback) => callback(stream));
+}
+
+export function subscribeToRemoteStream(callId, callback) {
+  const listeners = remoteStreamListeners.get(callId) || [];
+  listeners.push(callback);
+  remoteStreamListeners.set(callId, listeners);
+
+  const existingStream = remoteStreams.get(callId);
+  if (existingStream) {
+    callback(existingStream);
+  }
+
+  return () => {
+    const currentListeners = remoteStreamListeners.get(callId) || [];
+    remoteStreamListeners.set(
+      callId,
+      currentListeners.filter((listener) => listener !== callback)
+    );
+  };
+}
 
 // Create or get peer connection
 export async function createPeerConnection(callId) {
@@ -48,6 +75,13 @@ export async function createPeerConnection(callId) {
         timestamp: new Date(),
       });
     }
+  };
+
+  peerConnection.ontrack = (event) => {
+    const remoteStream = event.streams && event.streams[0]
+      ? event.streams[0]
+      : new MediaStream([event.track]);
+    notifyRemoteStream(callId, remoteStream);
   };
 
   peerConnections.set(callId, peerConnection);
@@ -224,12 +258,7 @@ export function subscribeToIceCandidates(callId, callback) {
 
 // Get remote stream
 export function getRemoteStream(callId) {
-  const peerConnection = peerConnections.get(callId);
-  if (peerConnection) {
-    const streams = peerConnection.getRemoteStreams();
-    return streams[0];
-  }
-  return null;
+  return remoteStreams.get(callId) || null;
 }
 
 // Get local stream element
