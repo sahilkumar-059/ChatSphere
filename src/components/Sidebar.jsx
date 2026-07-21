@@ -1,5 +1,4 @@
 const navItems = [
-  { id: "Home", icon: "🏠" },
   { id: "Chats", icon: "💬" },
   { id: "Friends", icon: "👥" },
   { id: "Calls", icon: "📞" },
@@ -12,15 +11,12 @@ export default function Sidebar({
   activeTab,
   onTabChange,
   onOpenSettings,
-  onOpenSearchFriends,
   onLogout,
   onToggleSidebar,
   sidebarOpen,
   unreadCount,
   incomingFriendCount,
 }) {
-  const [homeItem, ...otherNavItems] = navItems;
-
   return (
     <aside className={`sidebar-shell ${sidebarOpen ? "open" : "collapsed"}`}>
       <div className="sidebar-top">
@@ -42,21 +38,7 @@ export default function Sidebar({
       </div>
 
       <nav className="sidebar-nav">
-        <button
-          className={`nav-item ${activeTab === homeItem.id ? "active" : ""}`}
-          onClick={() => onTabChange(homeItem.id)}
-        >
-          <span className="nav-icon">{homeItem.icon}</span>
-          <span>{homeItem.id}</span>
-        </button>
-
-        <button type="button" className="sidebar-search-friends" onClick={onOpenSearchFriends}>
-          <span className="nav-icon">🔍</span>
-          <span>Search Friends</span>
-          {incomingFriendCount > 0 ? <span className="nav-badge">{incomingFriendCount}</span> : null}
-        </button>
-
-        {otherNavItems.map((item) => (
+        {navItems.map((item) => (
           <button
             key={item.id}
             className={`nav-item ${activeTab === item.id ? "active" : ""}`}

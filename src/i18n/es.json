@@ -1,0 +1,110 @@
+{
+  "app": {
+    "name": "ChatSphere"
+  },
+  "sidebar": {
+    "chats": "Chats",
+    "friends": "Amigos",
+    "calls": "Llamadas",
+    "notifications": "Notificaciones",
+    "settings": "Ajustes",
+    "messages": "Mensajes",
+    "openSettings": "Abrir Ajustes",
+    "logout": "Cerrar sesión"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "profile": "Perfil",
+    "profileDesc": "Información personal, nombre de usuario, biografía, foto de perfil",
+    "appearance": "Apariencia",
+    "appearanceDesc": "Tema, fondos de pantalla y colores de chat",
+    "notifications": "Notificaciones",
+    "notificationsDesc": "Preferencias de notificaciones",
+    "privacy": "Privacidad",
+    "privacyDesc": "Usuarios bloqueados, confirmaciones de lectura, estado en línea",
+    "chats": "Chats",
+    "chatsDesc": "Fondo de pantalla, tamaño de fuente, descarga automática de medios",
+    "calls": "Llamadas",
+    "callsDesc": "Configuración de llamadas y preferencias de historial",
+    "language": "Idioma",
+    "languageDesc": "Elegir idioma de la aplicación",
+    "about": "Acerca de",
+    "aboutDesc": "Versión, información del desarrollador",
+    "account": "Cuenta",
+    "username": "Nombre de usuario",
+    "usernameDesc": "Toca para cambiar",
+    "setUsername": "Establecer nombre de usuario",
+    "logOut": "Cerrar sesión",
+    "dark": "Oscuro",
+    "light": "Claro",
+    "on": "Activado",
+    "off": "Desactivado",
+    "languageModalTitle": "Elegir idioma",
+    "chatWallpaper": "Fondo de chat"
+  },
+  "chat": {
+    "noMessages": "Aún no hay mensajes",
+    "typeMessage": "Escribe un mensaje...",
+    "online": "En línea",
+    "offline": "Desconectado",
+    "lastSeen": "Visto por última vez",
+    "onlineNow": "En línea ahora",
+    "isTyping": "está escribiendo...",
+    "dropFiles": "Suelta archivos para subir"
+  },
+  "auth": {
+    "signIn": "Iniciar sesión",
+    "signUp": "Registrarse",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "noAccount": "¿No tienes una cuenta?",
+    "hasAccount": "¿Ya tienes una cuenta?"
+  },
+  "friends": {
+    "title": "Amigos",
+    "searchPlaceholder": "Buscar por nombre de usuario...",
+    "addFriend": "Agregar amigo",
+    "accept": "Aceptar",
+    "reject": "Rechazar",
+    "noFriends": "Aún no hay amigos. Busca personas para conectar.",
+    "noRequests": "No hay solicitudes de amistad pendientes.",
+    "incomingRequests": "Solicitudes entrantes",
+    "yourFriends": "Tus amigos",
+    "suggested": "Amigos sugeridos",
+    "searchResults": "Resultados de búsqueda",
+    "connections": "Conexiones"
+  },
+  "calls": {
+    "title": "Llamadas",
+    "noCalls": "Aún no hay llamadas",
+    "total": "total",
+    "searchPlaceholder": "Buscar por nombre...",
+    "allCalls": "Todas las llamadas",
+    "missedCalls": "Llamadas perdidas",
+    "incoming": "Entrantes",
+    "outgoing": "Salientes",
+    "videoCalls": "Videollamadas",
+    "voiceCalls": "Llamadas de voz"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "all": "Todas",
+    "messages": "Mensajes",
+    "friends": "Amigos",
+    "calls": "Llamadas",
+    "system": "Sistema",
+    "markAllRead": "Marcar todo como leído",
+    "clearAll": "Limpiar todo",
+    "emptyTitle": "¡Estás al día!",
+    "emptySubtitle": "Nuevos mensajes, solicitudes de amistad y llamadas aparecerán aquí."
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "close": "Cerrar",
+    "search": "Buscar",
+    "noResults": "No se encontraron resultados"
+  }
+}

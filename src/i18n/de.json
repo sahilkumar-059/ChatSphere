@@ -1,0 +1,110 @@
+{
+  "app": {
+    "name": "ChatSphere"
+  },
+  "sidebar": {
+    "chats": "Chats",
+    "friends": "Freunde",
+    "calls": "Anrufe",
+    "notifications": "Benachrichtigungen",
+    "settings": "Einstellungen",
+    "messages": "Nachrichten",
+    "openSettings": "Einstellungen öffnen",
+    "logout": "Abmelden"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "profile": "Profil",
+    "profileDesc": "Persönliche Informationen, Benutzername, Bio, Profilbild",
+    "appearance": "Erscheinungsbild",
+    "appearanceDesc": "Design, Hintergrundbilder und Chat-Farben",
+    "notifications": "Benachrichtigungen",
+    "notificationsDesc": "Benachrichtigungseinstellungen",
+    "privacy": "Datenschutz",
+    "privacyDesc": "Blockierte Benutzer, Lesebestätigungen, Online-Status",
+    "chats": "Chats",
+    "chatsDesc": "Hintergrundbild, Schriftgröße, automatischer Medien-Download",
+    "calls": "Anrufe",
+    "callsDesc": "Anrufeinstellungen und Verlaufspräferenzen",
+    "language": "Sprache",
+    "languageDesc": "App-Sprache auswählen",
+    "about": "Über",
+    "aboutDesc": "Version, Entwicklerinformationen",
+    "account": "Konto",
+    "username": "Benutzername",
+    "usernameDesc": "Tippen zum Ändern",
+    "setUsername": "Benutzername festlegen",
+    "logOut": "Abmelden",
+    "dark": "Dunkel",
+    "light": "Hell",
+    "on": "An",
+    "off": "Aus",
+    "languageModalTitle": "Sprache auswählen",
+    "chatWallpaper": "Chat-Hintergrund"
+  },
+  "chat": {
+    "noMessages": "Noch keine Nachrichten",
+    "typeMessage": "Schreibe eine Nachricht...",
+    "online": "Online",
+    "offline": "Offline",
+    "lastSeen": "Zuletzt gesehen",
+    "onlineNow": "Jetzt online",
+    "isTyping": "schreibt...",
+    "dropFiles": "Dateien zum Hochladen ablegen"
+  },
+  "auth": {
+    "signIn": "Anmelden",
+    "signUp": "Registrieren",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "forgotPassword": "Passwort vergessen?",
+    "noAccount": "Noch kein Konto?",
+    "hasAccount": "Bereits ein Konto?"
+  },
+  "friends": {
+    "title": "Freunde",
+    "searchPlaceholder": "Nach Benutzername suchen...",
+    "addFriend": "Freund hinzufügen",
+    "accept": "Akzeptieren",
+    "reject": "Ablehnen",
+    "noFriends": "Noch keine Freunde. Suche nach Personen, um dich zu vernetzen.",
+    "noRequests": "Keine ausstehenden Freundschaftsanfragen.",
+    "incomingRequests": "Eingehende Anfragen",
+    "yourFriends": "Deine Freunde",
+    "suggested": "Vorgeschlagene Freunde",
+    "searchResults": "Suchergebnisse",
+    "connections": "Verbindungen"
+  },
+  "calls": {
+    "title": "Anrufe",
+    "noCalls": "Noch keine Anrufe",
+    "total": "insgesamt",
+    "searchPlaceholder": "Nach Name suchen...",
+    "allCalls": "Alle Anrufe",
+    "missedCalls": "Verpasste Anrufe",
+    "incoming": "Eingehend",
+    "outgoing": "Ausgehend",
+    "videoCalls": "Videoanrufe",
+    "voiceCalls": "Sprachanrufe"
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "all": "Alle",
+    "messages": "Nachrichten",
+    "friends": "Freunde",
+    "calls": "Anrufe",
+    "system": "System",
+    "markAllRead": "Alle als gelesen markieren",
+    "clearAll": "Alle löschen",
+    "emptyTitle": "Du bist auf dem neuesten Stand!",
+    "emptySubtitle": "Neue Nachrichten, Freundschaftsanfragen und Anrufe erscheinen hier."
+  },
+  "common": {
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "close": "Schließen",
+    "search": "Suche",
+    "noResults": "Keine Ergebnisse gefunden"
+  }
+}

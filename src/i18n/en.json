@@ -1,0 +1,110 @@
+{
+  "app": {
+    "name": "ChatSphere"
+  },
+  "sidebar": {
+    "chats": "Chats",
+    "friends": "Friends",
+    "calls": "Calls",
+    "notifications": "Notifications",
+    "settings": "Settings",
+    "messages": "Messages",
+    "openSettings": "Open Settings",
+    "logout": "Logout"
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "profileDesc": "Personal information, username, bio, profile picture",
+    "appearance": "Appearance",
+    "appearanceDesc": "Theme, wallpapers and chat colors",
+    "notifications": "Notifications",
+    "notificationsDesc": "Notification preferences",
+    "privacy": "Privacy",
+    "privacyDesc": "Blocked users, read receipts, online status",
+    "chats": "Chats",
+    "chatsDesc": "Wallpaper, font size, media auto-download",
+    "calls": "Calls",
+    "callsDesc": "Call settings and history preferences",
+    "language": "Language",
+    "languageDesc": "Choose app language",
+    "about": "About",
+    "aboutDesc": "Version, developer information",
+    "account": "Account",
+    "username": "Username",
+    "usernameDesc": "Tap to change",
+    "setUsername": "Set username",
+    "logOut": "Log Out",
+    "dark": "Dark",
+    "light": "Light",
+    "on": "On",
+    "off": "Off",
+    "languageModalTitle": "Choose Language",
+    "chatWallpaper": "Chat Wallpaper"
+  },
+  "chat": {
+    "noMessages": "No messages yet",
+    "typeMessage": "Type a message...",
+    "online": "Online",
+    "offline": "Offline",
+    "lastSeen": "Last seen",
+    "onlineNow": "Online now",
+    "isTyping": "is typing...",
+    "dropFiles": "Drop files to upload"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?"
+  },
+  "friends": {
+    "title": "Friends",
+    "searchPlaceholder": "Search by username...",
+    "addFriend": "Add Friend",
+    "accept": "Accept",
+    "reject": "Reject",
+    "noFriends": "No friends yet. Search for people to connect with.",
+    "noRequests": "No pending friend requests.",
+    "incomingRequests": "Incoming Requests",
+    "yourFriends": "Your Friends",
+    "suggested": "Suggested Friends",
+    "searchResults": "Search Results",
+    "connections": "Connections"
+  },
+  "calls": {
+    "title": "Calls",
+    "noCalls": "No calls yet",
+    "total": "total",
+    "searchPlaceholder": "Search by name...",
+    "allCalls": "All Calls",
+    "missedCalls": "Missed Calls",
+    "incoming": "Incoming",
+    "outgoing": "Outgoing",
+    "videoCalls": "Video Calls",
+    "voiceCalls": "Voice Calls"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "all": "All",
+    "messages": "Messages",
+    "friends": "Friends",
+    "calls": "Calls",
+    "system": "System",
+    "markAllRead": "Mark All as Read",
+    "clearAll": "Clear All",
+    "emptyTitle": "You're all caught up!",
+    "emptySubtitle": "New messages, friend requests and calls will appear here."
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "close": "Close",
+    "search": "Search",
+    "noResults": "No results found"
+  }
+}

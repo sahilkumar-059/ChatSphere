@@ -1,0 +1,11 @@
+{
+  "app": { "name": "ChatSphere" },
+  "sidebar": { "chats": "チャット", "friends": "友達", "calls": "通話", "notifications": "通知", "settings": "設定", "messages": "メッセージ", "openSettings": "設定を開く", "logout": "ログアウト" },
+  "settings": { "title": "設定", "profile": "プロフィール", "profileDesc": "個人情報、ユーザー名、自己紹介、プロフィール写真", "appearance": "外観", "appearanceDesc": "テーマ、壁紙、チャットの色", "notifications": "通知", "notificationsDesc": "通知の設定", "privacy": "プライバシー", "privacyDesc": "ブロックしたユーザー、既読、オンラインステータス", "chats": "チャット", "chatsDesc": "壁紙、フォントサイズ、メディア自動ダウンロード", "calls": "通話", "callsDesc": "通話設定と履歴", "language": "言語", "languageDesc": "アプリの言語を選択", "about": "情報", "aboutDesc": "バージョン、開発者情報", "account": "アカウント", "username": "ユーザー名", "usernameDesc": "タップして変更", "setUsername": "ユーザー名を設定", "logOut": "ログアウト", "dark": "ダーク", "light": "ライト", "on": "オン", "off": "オフ", "languageModalTitle": "言語を選択", "chatWallpaper": "チャットの壁紙" },
+  "chat": { "noMessages": "メッセージはまだありません", "typeMessage": "メッセージを入力...", "online": "オンライン", "offline": "オフライン", "lastSeen": "最終アクセス", "onlineNow": "オンライン中", "isTyping": "入力中...", "dropFiles": "ファイルをドロップしてアップロード" },
+  "auth": { "signIn": "ログイン", "signUp": "登録", "email": "メール", "password": "パスワード", "forgotPassword": "パスワードをお忘れですか？", "noAccount": "アカウントをお持ちでない方", "hasAccount": "すでにアカウントをお持ちの方" },
+  "friends": { "title": "友達", "searchPlaceholder": "ユーザー名で検索...", "addFriend": "友達を追加", "accept": "承認", "reject": "拒否", "noFriends": "まだ友達がいません。人を検索してつながりましょう。", "noRequests": "保留中の友達リクエストはありません。", "incomingRequests": "受信したリクエスト", "yourFriends": "あなたの友達", "suggested": "おすすめ", "searchResults": "検索結果", "connections": "コネクション" },
+  "calls": { "title": "通話", "noCalls": "通話履歴はありません", "total": "合計", "searchPlaceholder": "名前で検索...", "allCalls": "すべての通話", "missedCalls": "不在着信", "incoming": "着信", "outgoing": "発信", "videoCalls": "ビデオ通話", "voiceCalls": "音声通話" },
+  "notifications": { "title": "通知", "all": "すべて", "messages": "メッセージ", "friends": "友達", "calls": "通話", "system": "システム", "markAllRead": "すべて既読にする", "clearAll": "すべてクリア", "emptyTitle": "すべて確認済み！", "emptySubtitle": "新しいメッセージ、友達リクエスト、通話がここに表示されます。" },
+  "common": { "cancel": "キャンセル", "save": "保存", "delete": "削除", "close": "閉じる", "search": "検索", "noResults": "結果が見つかりません" }
+}

@@ -8,6 +8,7 @@ import {
   getDocs,
   updateDoc 
 } from "firebase/firestore";
+import { createNotification } from "./notificationService";
 
 const iceServers = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -168,6 +169,18 @@ export async function initiateCall(callId, callerId, calleeId, calleeDisplayName
     };
 
     await setDoc(doc(db, "calls", callId), callDoc);
+
+    // Create notification for incoming call
+    await createNotification({
+      receiverId: calleeId,
+      type: "call",
+      title: videoEnabled ? "Video call" : "Voice call",
+      message: "Incoming call",
+      senderId: callerId,
+      senderName: calleeDisplayName || "Someone",
+      senderPhoto: "",
+      referenceId: callId,
+    }).catch((err) => console.error("Failed to create call notification:", err));
   } catch (error) {
     console.error("Error initiating call:", error);
     throw error;

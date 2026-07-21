@@ -1,0 +1,11 @@
+{
+  "app": { "name": "ChatSphere" },
+  "sidebar": { "chats": "채팅", "friends": "친구", "calls": "통화", "notifications": "알림", "settings": "설정", "messages": "메시지", "openSettings": "설정 열기", "logout": "로그아웃" },
+  "settings": { "title": "설정", "profile": "프로필", "profileDesc": "개인 정보, 사용자 이름, 소개, 프로필 사진", "appearance": "외관", "appearanceDesc": "테마, 배경화면 및 채팅 색상", "notifications": "알림", "notificationsDesc": "알림 기본 설정", "privacy": "개인정보", "privacyDesc": "차단된 사용자, 읽음 확인, 온라인 상태", "chats": "채팅", "chatsDesc": "배경화면, 글꼴 크기, 미디어 자동 다운로드", "calls": "통화", "callsDesc": "통화 설정 및 기록 기본 설정", "language": "언어", "languageDesc": "앱 언어 선택", "about": "정보", "aboutDesc": "버전, 개발자 정보", "account": "계정", "username": "사용자 이름", "usernameDesc": "변경하려면 탭하세요", "setUsername": "사용자 이름 설정", "logOut": "로그아웃", "dark": "다크", "light": "라이트", "on": "켜짐", "off": "꺼짐", "languageModalTitle": "언어 선택", "chatWallpaper": "채팅 배경화면" },
+  "chat": { "noMessages": "아직 메시지가 없습니다", "typeMessage": "메시지를 입력하세요...", "online": "온라인", "offline": "오프라인", "lastSeen": "마지막 접속", "onlineNow": "온라인 상태", "isTyping": "입력 중...", "dropFiles": "파일을 드래그하여 업로드" },
+  "auth": { "signIn": "로그인", "signUp": "회원가입", "email": "이메일", "password": "비밀번호", "forgotPassword": "비밀번호를 잊으셨나요?", "noAccount": "계정이 없으신가요?", "hasAccount": "이미 계정이 있으신가요?" },
+  "friends": { "title": "친구", "searchPlaceholder": "사용자 이름으로 검색...", "addFriend": "친구 추가", "accept": "수락", "reject": "거절", "noFriends": "아직 친구가 없습니다. 사람을 검색하여 연결하세요.", "noRequests": "보류 중인 친구 요청이 없습니다.", "incomingRequests": "받은 요청", "yourFriends": "내 친구", "suggested": "추천 친구", "searchResults": "검색 결과", "connections": "연결" },
+  "calls": { "title": "통화", "noCalls": "아직 통화가 없습니다", "total": "총", "searchPlaceholder": "이름으로 검색...", "allCalls": "모든 통화", "missedCalls": "부재중 전화", "incoming": "수신", "outgoing": "발신", "videoCalls": "영상 통화", "voiceCalls": "음성 통화" },
+  "notifications": { "title": "알림", "all": "전체", "messages": "메시지", "friends": "친구", "calls": "통화", "system": "시스템", "markAllRead": "모두 읽음으로 표시", "clearAll": "모두 지우기", "emptyTitle": "모두 확인했습니다!", "emptySubtitle": "새 메시지, 친구 요청 및 통화가 여기에 표시됩니다." },
+  "common": { "cancel": "취소", "save": "저장", "delete": "삭제", "close": "닫기", "search": "검색", "noResults": "검색 결과가 없습니다" }
+}

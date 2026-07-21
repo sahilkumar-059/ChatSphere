@@ -221,11 +221,16 @@ export default function ProfileEditor({
         </button>
       </div>
 
-      {/* Name and username display */}
+      {/* Name, Unique ID, and username display */}
       <div className="profile-editor-name-section">
         <h3 className="profile-editor-fullname">{displayName || "Your Name"}</h3>
+        {profile.uniqueId && (
+          <span className="profile-editor-uniqueid-display">
+            @{profile.uniqueId}
+          </span>
+        )}
         <span className="profile-editor-username-display">
-          @{username || "username"}
+          @{username || "username"} 
         </span>
         <span className={`profile-editor-status-badge status-${status}`}>
           {STATUS_OPTIONS.find((s) => s.id === status)?.emoji}{" "}

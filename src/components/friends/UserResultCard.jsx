@@ -23,7 +23,7 @@ export default function UserResultCard({ user, relationship, onAddFriend, loadin
 
       <div className="friend-user-info">
         <strong>{user.fullName}</strong>
-        <span>@{user.username || "user"}</span>
+        <span>@{user.uniqueId || user.username || "user"}</span>
         <p className={`friend-status-label ${user.isOnline ? "online" : "offline"}`}>
           {user.isOnline ? "Online" : "Offline"}
         </p>

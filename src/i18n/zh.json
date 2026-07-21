@@ -1,0 +1,11 @@
+{
+  "app": { "name": "ChatSphere" },
+  "sidebar": { "chats": "聊天", "friends": "好友", "calls": "通话", "notifications": "通知", "settings": "设置", "messages": "消息", "openSettings": "打开设置", "logout": "退出登录" },
+  "settings": { "title": "设置", "profile": "个人资料", "profileDesc": "个人信息、用户名、个人简介、头像", "appearance": "外观", "appearanceDesc": "主题、壁纸和聊天颜色", "notifications": "通知", "notificationsDesc": "通知偏好", "privacy": "隐私", "privacyDesc": "已屏蔽用户、已读回执、在线状态", "chats": "聊天", "chatsDesc": "壁纸、字体大小、媒体自动下载", "calls": "通话", "callsDesc": "通话设置和历史记录", "language": "语言", "languageDesc": "选择应用语言", "about": "关于", "aboutDesc": "版本、开发者信息", "account": "账户", "username": "用户名", "usernameDesc": "点击更改", "setUsername": "设置用户名", "logOut": "退出登录", "dark": "深色", "light": "浅色", "on": "开启", "off": "关闭", "languageModalTitle": "选择语言", "chatWallpaper": "聊天壁纸" },
+  "chat": { "noMessages": "暂无消息", "typeMessage": "输入消息...", "online": "在线", "offline": "离线", "lastSeen": "最后上线", "onlineNow": "当前在线", "isTyping": "正在输入...", "dropFiles": "拖拽文件以上传" },
+  "auth": { "signIn": "登录", "signUp": "注册", "email": "邮箱", "password": "密码", "forgotPassword": "忘记密码？", "noAccount": "没有账户？", "hasAccount": "已有账户？" },
+  "friends": { "title": "好友", "searchPlaceholder": "搜索用户名...", "addFriend": "添加好友", "accept": "接受", "reject": "拒绝", "noFriends": "暂无好友。搜索用户以建立联系。", "noRequests": "暂无待处理的好友请求。", "incomingRequests": "收到的请求", "yourFriends": "你的好友", "suggested": "推荐好友", "searchResults": "搜索结果", "connections": "联系人" },
+  "calls": { "title": "通话", "noCalls": "暂无通话", "total": "总计", "searchPlaceholder": "搜索姓名...", "allCalls": "全部通话", "missedCalls": "未接来电", "incoming": "来电", "outgoing": "去电", "videoCalls": "视频通话", "voiceCalls": "语音通话" },
+  "notifications": { "title": "通知", "all": "全部", "messages": "消息", "friends": "好友", "calls": "通话", "system": "系统", "markAllRead": "全部标为已读", "clearAll": "清除全部", "emptyTitle": "一切就绪！", "emptySubtitle": "新消息、好友请求和通话将显示在此处。" },
+  "common": { "cancel": "取消", "save": "保存", "delete": "删除", "close": "关闭", "search": "搜索", "noResults": "未找到结果" }
+}

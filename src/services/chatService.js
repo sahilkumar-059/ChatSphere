@@ -12,6 +12,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { createNotification } from "./notificationService";
 
 // Generate a unique chat ID for two users (sorted to ensure consistency)
 function getChatId(userId1, userId2) {
@@ -61,6 +62,20 @@ export async function sendMessage(chatId, messageData) {
     lastMessageTime: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+
+  // Create notification for message recipient
+  if (messageData.receiverId && messageData.receiverId !== messageData.senderId) {
+    await createNotification({
+      receiverId: messageData.receiverId,
+      type: "message",
+      title: "New message",
+      message: messageData.text || (messageData.type === "image" ? "Sent an image" : "Sent a voice message"),
+      senderId: messageData.senderId,
+      senderName: messageData.senderName || "Someone",
+      senderPhoto: messageData.senderPhotoURL || "",
+      referenceId: chatId,
+    }).catch((err) => console.error("Failed to create notification:", err));
+  }
 
   // Simulate delivery and read receipts
   setTimeout(() => {

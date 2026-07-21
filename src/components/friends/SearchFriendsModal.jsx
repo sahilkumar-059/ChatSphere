@@ -74,7 +74,7 @@ export default function SearchFriendsModal({ user, friendData, onClose, inline }
           <div>
             <p className="eyebrow">Discover</p>
             <h2>Search Friends</h2>
-            <p className="friends-subtitle">Find people by username, name, or email.</p>
+            <p className="friends-subtitle">Find people by their @UniqueID</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close search">
             ✕
@@ -88,7 +88,7 @@ export default function SearchFriendsModal({ user, friendData, onClose, inline }
           <input
             className="friends-search-input"
             type="search"
-            placeholder="Search by username, name, or email…"
+            placeholder="Search by @UniqueID…"
             value={searchTerm}
             onChange={(event) => {
               const nextTerm = event.target.value;
@@ -141,7 +141,7 @@ export default function SearchFriendsModal({ user, friendData, onClose, inline }
           <div>
             <p className="eyebrow">Discover</p>
             <h2>Search Friends</h2>
-            <p className="friends-subtitle">Find people by username, name, or email.</p>
+            <p className="friends-subtitle">Find people by their @UniqueID</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close search">
             ✕
@@ -155,7 +155,7 @@ export default function SearchFriendsModal({ user, friendData, onClose, inline }
           <input
             className="friends-search-input"
             type="search"
-            placeholder="Search by username, name, or email…"
+            placeholder="Search by @UniqueID…"
             value={searchTerm}
             onChange={(event) => {
               const nextTerm = event.target.value;

@@ -8,6 +8,7 @@ import ChatList from "./components/ChatList";
 import ChatWindow from "./components/ChatWindow";
 import Settings from "./components/Settings";
 import UsernameSetup from "./components/UsernameSetup";
+import UniqueIdSetup from "./components/UniqueIdSetup";
 import EditUsernameModal from "./components/EditUsernameModal";
 import SearchFriendsModal from "./components/friends/SearchFriendsModal";
 import FriendRequestsPage from "./components/friends/FriendRequestsPage";
@@ -18,6 +19,7 @@ import { getOrCreateChatRoom, loadMessages, sendMessage as sendChatMessage, subs
 import { initiateCall, subscribeToCall, subscribeToIceCandidates, addIceCandidate, setRemoteDescription, stopAllStreams, cleanupCall, generateCallId } from "./services/callService";
 import { createCallRecord, markCallAnswered, markCallRejected, markCallEnded, markCallCancelled, markCallMissed } from "./services/callHistoryService";
 import CallsPage from "./components/CallsPage";
+import NotificationsPage from "./components/NotificationsPage";
 import "./App.css";
 
 
@@ -60,6 +62,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSearchFriends, setShowSearchFriends] = useState(false);
   const [showUsernameSetup, setShowUsernameSetup] = useState(false);
+  const [showUniqueIdSetup, setShowUniqueIdSetup] = useState(false);
   const [showEditUsername, setShowEditUsername] = useState(false);
   const [friendData, setFriendData] = useState({
     friends: [],
@@ -150,6 +153,7 @@ export default function App() {
       setProfile({
         bio: data.bio || "Building something better than chat apps.",
         username: data.username || "",
+        uniqueId: data.uniqueId || "",
         displayName: data.displayName || user?.displayName || "",
         phone: data.phone || "",
         status: data.status || "online",
@@ -164,6 +168,13 @@ export default function App() {
       }));
       setOnline(Boolean(data.isOnline));
       setLastSeen(data.lastSeen ? "a moment ago" : "just now");
+      
+      // Check if user needs to create a Unique ID
+      if (user && !data.uniqueId) {
+        setShowUniqueIdSetup(true);
+      } else if (user && data.uniqueId) {
+        setShowUniqueIdSetup(false);
+      }
     });
 
     const markPresence = async (isOnline) => {
@@ -578,6 +589,7 @@ export default function App() {
 
     // Use the existing chatId from selectedChat
     const chatId = currentChatId;
+    const receiverId = selectedChat.id || selectedChat.friendId;
     
     if (!chatId) {
       console.error("sendMessage: Missing chatId in selectedChat", selectedChat);
@@ -597,6 +609,7 @@ export default function App() {
       imageUrl,
       audioUrl,
       type,
+      receiverId,
     };
 
     const clientKey = `${user.uid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -684,6 +697,7 @@ export default function App() {
   const currentPresence = online ? "Online now" : `Last seen ${lastSeen}`;
   const isFriendsView = activeTab === "Friends";
   const isCallsView = activeTab === "Calls";
+  const isNotificationsView = activeTab === "Notifications";
 
   return (
     <div className={`app-shell theme-${settings.themeMode}`}>
@@ -700,7 +714,7 @@ export default function App() {
         incomingFriendCount={friendData.incoming.length}
       />
 
-      <div className={`app-content ${isFriendsView ? "friends-active" : ""} ${isCallsView ? "calls-active" : ""}`}>
+      <div className={`app-content ${isFriendsView ? "friends-active" : ""} ${isCallsView ? "calls-active" : ""} ${isNotificationsView ? "notifications-active" : ""}`}>
         {isFriendsView ? (
           <div className="friends-layout">
             <FriendRequestsPage
@@ -721,6 +735,24 @@ export default function App() {
           </div>
         ) : isCallsView ? (
           <CallsPage user={user} />
+        ) : isNotificationsView ? (
+          <div className="notifications-layout">
+            <NotificationsPage onNavigate={(page, ...args) => {
+              if (page === "chat") {
+                setActiveTab("Chats");
+                if (args[0]) {
+                  const chat = filteredChats.find(c => c.chatId === args[0]);
+                  if (chat) handleSelectChat(chat);
+                }
+              } else if (page === "friends") {
+                setActiveTab("Friends");
+              } else if (page === "calls") {
+                setActiveTab("Calls");
+              } else if (page === "settings") {
+                openSettings();
+              }
+            }} />
+          </div>
         ) : (
           <>
             <ChatList
@@ -805,6 +837,22 @@ export default function App() {
           remoteName={activeCall.remoteName}
           videoEnabled={activeCall.videoEnabled}
           onCallEnd={handleCallEnd}
+        />
+      ) : null}
+
+      {showUniqueIdSetup ? (
+        <UniqueIdSetup
+          user={user}
+          onComplete={() => {
+            setShowUniqueIdSetup(false);
+            if (user) {
+              getDoc(doc(db, "users", user.uid)).then((snap) => {
+                if (snap.exists()) {
+                  setProfile((prev) => ({ ...prev, uniqueId: snap.data().uniqueId || "" }));
+                }
+              });
+            }
+          }}
         />
       ) : null}
 

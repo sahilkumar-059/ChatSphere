@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { getOrCreateChatRoom } from "./chatService";
+import { createNotification } from "./notificationService";
 
 export const RELATIONSHIP = {
   NONE: "none",
@@ -36,6 +37,7 @@ function normalizeUser(docSnap) {
     uid: data.uid || docSnap.id,
     fullName: data.fullName || data.displayName || "ChatSphere User",
     username: data.username || "",
+    uniqueId: data.uniqueId || data.username || "",
     email: data.email || "",
     photoURL: data.photoURL || "",
     isOnline: Boolean(data.isOnline),
@@ -44,16 +46,15 @@ function normalizeUser(docSnap) {
 }
 
 function matchesSearch(user, term) {
-  // Search by username, display name, or email
-  const username = (user.username || "").toLowerCase();
-  const fullName = (user.fullName || user.displayName || "").toLowerCase();
-  const email = (user.email || "").toLowerCase();
-  return username.includes(term) || fullName.includes(term) || email.includes(term);
+  // Search ONLY by Unique ID (support @ prefix)
+  const cleanTerm = term.replace(/^@/, "").toLowerCase();
+  const uniqueId = (user.uniqueId || user.username || "").toLowerCase();
+  return uniqueId.startsWith(cleanTerm);
 }
 
 export async function searchUsers(searchTerm, currentUserId) {
   const term = searchTerm.trim().toLowerCase();
-  if (!term || term.length < 2) return [];
+  if (!term || term.length < 1) return [];
 
   const snapshot = await getDocs(query(collection(db, "users"), limit(150)));
   return snapshot.docs
@@ -78,37 +79,71 @@ export async function sendFriendRequest(currentUser, targetUser) {
     throw new Error("You cannot send a friend request to yourself.");
   }
 
-  const friendRef = doc(db, "friends", friendshipDocId(fromUserId, toUserId));
-  const friendSnap = await getDoc(friendRef);
-  if (friendSnap.exists()) {
-    throw new Error("You are already friends with this user.");
+  try {
+    const friendRef = doc(db, "friends", friendshipDocId(fromUserId, toUserId));
+    const friendSnap = await getDoc(friendRef);
+    if (friendSnap.exists()) {
+      throw new Error("You are already friends with this user.");
+    }
+  } catch (err) {
+    if (err.message === "You are already friends with this user.") throw err;
+    console.error("[FriendRequest] Error checking friends:", err.code, err.message);
+    throw new Error("Failed to check friend status. " + err.message);
   }
 
-  const outgoingRef = doc(db, "friendRequests", requestDocId(fromUserId, toUserId));
-  const outgoingSnap = await getDoc(outgoingRef);
-  if (outgoingSnap.exists() && outgoingSnap.data().status === "pending") {
-    throw new Error("Friend request already sent.");
+  try {
+    const outgoingRef = doc(db, "friendRequests", requestDocId(fromUserId, toUserId));
+    const outgoingSnap = await getDoc(outgoingRef);
+    if (outgoingSnap.exists() && outgoingSnap.data().status === "pending") {
+      throw new Error("Friend request already sent.");
+    }
+
+    const incomingRef = doc(db, "friendRequests", requestDocId(toUserId, fromUserId));
+    const incomingSnap = await getDoc(incomingRef);
+    if (incomingSnap.exists() && incomingSnap.data().status === "pending") {
+      throw new Error("This user already sent you a request. Check Friend Requests.");
+    }
+  } catch (err) {
+    if (err.message === "Friend request already sent." || err.message === "This user already sent you a request. Check Friend Requests.") throw err;
+    console.error("[FriendRequest] Error checking requests:", err.code, err.message);
+    throw new Error("Failed to check existing requests. " + err.message);
   }
 
-  const incomingRef = doc(db, "friendRequests", requestDocId(toUserId, fromUserId));
-  const incomingSnap = await getDoc(incomingRef);
-  if (incomingSnap.exists() && incomingSnap.data().status === "pending") {
-    throw new Error("This user already sent you a request. Check Friend Requests.");
-  }
+  try {
+    const outgoingRef = doc(db, "friendRequests", requestDocId(fromUserId, toUserId));
+    console.log("[FriendRequest] Writing to:", outgoingRef.path, { fromUserId, toUserId });
+    await setDoc(outgoingRef, {
+      fromUserId,
+      fromUserName: currentUser.displayName || currentUser.fullName || "ChatSphere User",
+      fromUsername: currentUser.username || "",
+      fromUniqueId: currentUser.uniqueId || currentUser.username || "",
+      fromPhotoURL: currentUser.photoURL || "",
+      toUserId,
+      toUserName: targetUser.fullName || "ChatSphere User",
+      toUsername: targetUser.username || "",
+      toUniqueId: targetUser.uniqueId || targetUser.username || "",
+      toPhotoURL: targetUser.photoURL || "",
+      status: "pending",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    console.log("[FriendRequest] Successfully sent to", outgoingRef.path);
 
-  await setDoc(outgoingRef, {
-    fromUserId,
-    fromUserName: currentUser.displayName || currentUser.fullName || "ChatSphere User",
-    fromUsername: currentUser.username || "",
-    fromPhotoURL: currentUser.photoURL || "",
-    toUserId,
-    toUserName: targetUser.fullName || "ChatSphere User",
-    toUsername: targetUser.username || "",
-    toPhotoURL: targetUser.photoURL || "",
-    status: "pending",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+    // Create notification for friend request recipient
+    await createNotification({
+      receiverId: toUserId,
+      type: "friend",
+      title: "New friend request",
+      message: `${currentUser.displayName || currentUser.fullName || "Someone"} wants to be friends`,
+      senderId: fromUserId,
+      senderName: currentUser.displayName || currentUser.fullName || "Someone",
+      senderPhoto: currentUser.photoURL || "",
+      referenceId: requestDocId(fromUserId, toUserId),
+    }).catch((err) => console.error("Failed to create friend request notification:", err));
+  } catch (err) {
+    console.error("[FriendRequest] Write failed:", err.code, err.message);
+    throw new Error("Missing or insufficient permissions. Firebase error: " + err.code + " - " + err.message);
+  }
 }
 
 export async function acceptFriendRequest(request) {
@@ -127,6 +162,7 @@ export async function acceptFriendRequest(request) {
     friendId: fromUserId,
     friendFullName: fromUserName,
     friendUsername: fromUsername,
+    friendUniqueId: request.fromUniqueId || fromUsername,
     friendPhotoURL: fromPhotoURL,
     createdAt: now,
   });
@@ -136,12 +172,25 @@ export async function acceptFriendRequest(request) {
     friendId: toUserId,
     friendFullName: toUserName,
     friendUsername: toUsername,
+    friendUniqueId: request.toUniqueId || toUsername,
     friendPhotoURL: toPhotoURL,
     createdAt: now,
   });
 
   // Automatically create a chat room for the new friends
-  await getOrCreateChatRoom(fromUserId, toUserId);
+  const chatId = await getOrCreateChatRoom(fromUserId, toUserId);
+
+  // Create notification for the sender that their request was accepted
+  await createNotification({
+    receiverId: fromUserId,
+    type: "friend",
+    title: "Friend request accepted",
+    message: `${toUserName || "Someone"} accepted your friend request`,
+    senderId: toUserId,
+    senderName: toUserName || "Someone",
+    senderPhoto: toPhotoURL || "",
+    referenceId: chatId,
+  }).catch((err) => console.error("Failed to create acceptance notification:", err));
 }
 
 export async function rejectFriendRequest(requestId) {

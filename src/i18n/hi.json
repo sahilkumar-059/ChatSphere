@@ -1,0 +1,110 @@
+{
+  "app": {
+    "name": "चैटस्फीयर"
+  },
+  "sidebar": {
+    "chats": "चैट",
+    "friends": "मित्र",
+    "calls": "कॉल",
+    "notifications": "सूचनाएं",
+    "settings": "सेटिंग्स",
+    "messages": "संदेश",
+    "openSettings": "सेटिंग्स खोलें",
+    "logout": "लॉग आउट"
+  },
+  "settings": {
+    "title": "सेटिंग्स",
+    "profile": "प्रोफ़ाइल",
+    "profileDesc": "व्यक्तिगत जानकारी, उपयोगकर्ता नाम, बायो, प्रोफ़ाइल फ़ोटो",
+    "appearance": "दिखावट",
+    "appearanceDesc": "थीम, वॉलपेपर और चैट रंग",
+    "notifications": "सूचनाएं",
+    "notificationsDesc": "सूचना प्राथमिकताएं",
+    "privacy": "गोपनीयता",
+    "privacyDesc": "ब्लॉक किए गए उपयोगकर्ता, रीड रिसीट, ऑनलाइन स्थिति",
+    "chats": "चैट",
+    "chatsDesc": "वॉलपेपर, फ़ॉन्ट आकार, मीडिया ऑटो-डाउनलोड",
+    "calls": "कॉल",
+    "callsDesc": "कॉल सेटिंग्स और इतिहास प्राथमिकताएं",
+    "language": "भाषा",
+    "languageDesc": "ऐप भाषा चुनें",
+    "about": "जानकारी",
+    "aboutDesc": "संस्करण, डेवलपर जानकारी",
+    "account": "खाता",
+    "username": "उपयोगकर्ता नाम",
+    "usernameDesc": "बदलने के लिए टैप करें",
+    "setUsername": "उपयोगकर्ता नाम सेट करें",
+    "logOut": "लॉग आउट",
+    "dark": "डार्क",
+    "light": "लाइट",
+    "on": "चालू",
+    "off": "बंद",
+    "languageModalTitle": "भाषा चुनें",
+    "chatWallpaper": "चैट वॉलपेपर"
+  },
+  "chat": {
+    "noMessages": "अभी तक कोई संदेश नहीं",
+    "typeMessage": "एक संदेश लिखें...",
+    "online": "ऑनलाइन",
+    "offline": "ऑफ़लाइन",
+    "lastSeen": "अंतिम बार देखा गया",
+    "onlineNow": "अभी ऑनलाइन है",
+    "isTyping": "लिख रहा है...",
+    "dropFiles": "अपलोड करने के लिए फ़ाइलें यहाँ छोड़ें"
+  },
+  "auth": {
+    "signIn": "साइन इन",
+    "signUp": "साइन अप",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "forgotPassword": "पासवर्ड भूल गए?",
+    "noAccount": "खाता नहीं है?",
+    "hasAccount": "पहले से खाता है?"
+  },
+  "friends": {
+    "title": "मित्र",
+    "searchPlaceholder": "उपयोगकर्ता नाम से खोजें...",
+    "addFriend": "मित्र जोड़ें",
+    "accept": "स्वीकार करें",
+    "reject": "अस्वीकार करें",
+    "noFriends": "अभी तक कोई मित्र नहीं। जुड़ने के लिए लोगों को खोजें।",
+    "noRequests": "कोई लंबित मित्र अनुरोध नहीं।",
+    "incomingRequests": "आने वाले अनुरोध",
+    "yourFriends": "आपके मित्र",
+    "suggested": "सुझाए गए मित्र",
+    "searchResults": "खोज परिणाम",
+    "connections": "कनेक्शन"
+  },
+  "calls": {
+    "title": "कॉल",
+    "noCalls": "अभी तक कोई कॉल नहीं",
+    "total": "कुल",
+    "searchPlaceholder": "नाम से खोजें...",
+    "allCalls": "सभी कॉल",
+    "missedCalls": "मिस्ड कॉल",
+    "incoming": "आने वाली",
+    "outgoing": "जाने वाली",
+    "videoCalls": "वीडियो कॉल",
+    "voiceCalls": "वॉइस कॉल"
+  },
+  "notifications": {
+    "title": "सूचनाएं",
+    "all": "सभी",
+    "messages": "संदेश",
+    "friends": "मित्र",
+    "calls": "कॉल",
+    "system": "सिस्टम",
+    "markAllRead": "सभी पढ़े हुए चिह्नित करें",
+    "clearAll": "सभी साफ़ करें",
+    "emptyTitle": "आप सब अप-टू-डेट हैं!",
+    "emptySubtitle": "नए संदेश, मित्र अनुरोध और कॉल यहाँ दिखाई देंगे।"
+  },
+  "common": {
+    "cancel": "रद्द करें",
+    "save": "सहेजें",
+    "delete": "हटाएं",
+    "close": "बंद करें",
+    "search": "खोजें",
+    "noResults": "कोई परिणाम नहीं मिला"
+  }
+}
