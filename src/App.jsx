@@ -17,9 +17,10 @@ import CallWindow from "./components/CallWindow";
 import { subscribeFriendData } from "./services/friendService";
 import { getOrCreateChatRoom, loadMessages, sendMessage as sendChatMessage, subscribeToMessages, subscribeToUserChats } from "./services/chatService";
 import { initiateCall, subscribeToCall, subscribeToIceCandidates, addIceCandidate, setRemoteDescription, stopAllStreams, cleanupCall, generateCallId } from "./services/callService";
-import { createCallRecord, markCallAnswered, markCallRejected, markCallEnded, markCallCancelled, markCallMissed } from "./services/callHistoryService";
+import { createCallRecord, markCallAnswered, markCallRejected, markCallEnded, markCallMissed } from "./services/callHistoryService";
 import CallsPage from "./components/CallsPage";
 import NotificationsPage from "./components/NotificationsPage";
+import { subscribeToUnreadCountSummary, resetChatUnreadCount } from "./services/notificationService";
 import "./App.css";
 
 
@@ -55,7 +56,7 @@ const readStoredSettings = () => {
 
 export default function App() {
   const { user, logout } = useAuth();
-  const [profile, setProfile] = useState({ bio: "Building something better than chat apps.", username: "", displayName: "", phone: "", status: "online", photoURL: "" });
+  const [profile, setProfile] = useState({ bio: "Building something better than chat apps.", username: "", displayName: "", phone: "", status: "online", photoURL: "", location: "", birthday: "" });
   const [settings, setSettings] = useState(readStoredSettings);
   const [activeTab, setActiveTab] = useState("Chats");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -84,6 +85,7 @@ export default function App() {
   const [dragPreview, setDragPreview] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [activeChatIdForNotif, setActiveChatIdForNotif] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [, setCallState] = useState(null);
@@ -116,6 +118,14 @@ export default function App() {
       friendId,
       chatId,
     });
+    
+    // Reset unread count for this chat when opening it
+    if (chatId && user?.uid) {
+      resetChatUnreadCount(user.uid, chatId).catch(() => {});
+    }
+    
+    // Track which chat is active for notification smart logic
+    setActiveChatIdForNotif(chatId);
   };
 
   useEffect(() => {
@@ -158,6 +168,8 @@ export default function App() {
         phone: data.phone || "",
         status: data.status || "online",
         photoURL: data.photoURL || user?.photoURL || "",
+        location: data.location || "",
+        birthday: data.birthday || "",
       });
       setSettings((current) => ({
         ...current,
@@ -219,6 +231,14 @@ export default function App() {
     if (!user?.uid) return undefined;
     return subscribeToUserChats(user.uid, (chats) => {
       setUserChats(chats);
+    });
+  }, [user?.uid]);
+
+  // Subscribe to real-time unread count from notificationSummary
+  useEffect(() => {
+    if (!user?.uid) return undefined;
+    return subscribeToUnreadCountSummary(user.uid, (count) => {
+      setNotificationCount(count);
     });
   }, [user?.uid]);
 
@@ -440,6 +460,15 @@ export default function App() {
     return messages.filter((message) => message.chatId === currentChatId);
   }, [messages, currentChatId]);
 
+  // When a new message arrives for the currently open chat, reset its unread count
+  useEffect(() => {
+    if (!currentChatId || !user?.uid) return;
+    const lastMessage = visibleMessages[visibleMessages.length - 1];
+    if (lastMessage && lastMessage.senderId !== user.uid) {
+      resetChatUnreadCount(user.uid, currentChatId).catch(() => {});
+    }
+  }, [visibleMessages, currentChatId, user?.uid]);
+
   useEffect(() => {
     if (!user) return;
     const unreadSeenMessages = visibleMessages.filter((message) => message.senderId !== user.uid && message.status !== "seen");
@@ -601,6 +630,10 @@ export default function App() {
     console.log("text:", resolvedText);
     console.log("selectedChat:", selectedChat);
 
+    // Check if receiver is viewing this chat (for notification smart logic)
+    const receiverChatId = currentChatId;
+    const isReceiverViewingChat = activeChatIdForNotif === receiverChatId && selectedChat?.friendId === receiverId;
+
     const messagePayload = {
       senderId: user.uid,
       senderName: user.displayName || "You",
@@ -610,6 +643,7 @@ export default function App() {
       audioUrl,
       type,
       receiverId,
+      isReceiverViewingChat,
     };
 
     const clientKey = `${user.uid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -790,6 +824,10 @@ export default function App() {
               currentUserPresence={currentPresence}
               onStartVoiceCall={() => startCall(false)}
               onStartVideoCall={() => startCall(true)}
+              onSendFile={(files) => {
+                const file = files?.[0]?.file;
+                if (file) uploadFileAndSend(file, file.type.startsWith("audio/") ? "audio" : "image");
+              }}
             />
           </>
         )}

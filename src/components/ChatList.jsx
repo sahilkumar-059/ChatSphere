@@ -1,3 +1,8 @@
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { subscribeToChatUnreadCounts } from "../services/notificationService";
+import MuteModal from "./MuteModal";
+
 export default function ChatList({
   chats,
   searchChats,
@@ -5,6 +10,23 @@ export default function ChatList({
   selectedChatId,
   onSelectChat,
 }) {
+  const { user } = useAuth();
+  const [chatUnread, setChatUnread] = useState({});
+  const [muteModalChat, setMuteModalChat] = useState(null);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsubscribe = subscribeToChatUnreadCounts(user.uid, (unreadMap) => {
+      setChatUnread(unreadMap || {});
+    });
+    return unsubscribe;
+  }, [user?.uid]);
+
+  const handleContextMenu = (e, chat) => {
+    e.preventDefault();
+    setMuteModalChat(chat);
+  };
+
   const displayChats = Array.isArray(chats) ? chats : [];
 
   return (
@@ -40,7 +62,7 @@ export default function ChatList({
             const chatOnline = chat.online !== undefined ? chat.online : false;
             const lastMessage = chat.lastMessagePreview || chat.lastMessage || "No messages yet";
             const lastTime = chat.lastTime || "";
-            const unread = chat.unread || 0;
+            const unread = chatUnread[chatId] || chat.unread || 0;
 
             return (
               <button
@@ -57,6 +79,7 @@ export default function ChatList({
                     online: chatOnline,
                   })
                 }
+                onContextMenu={(e) => handleContextMenu(e, { chatId, chatName, friendId })}
               >
                 <div className="chat-avatar">
                   {typeof chatAvatar === "string" && chatAvatar.startsWith("http") ? (
@@ -65,6 +88,8 @@ export default function ChatList({
                     <span>{chatAvatar}</span>
                   )}
                   <span className={`presence-dot ${chatOnline ? "online" : "offline"}`} />
+                  {/* Green unread dot - WhatsApp style */}
+                  {unread > 0 && <span className="unread-dot" />}
                 </div>
 
                 <div className="chat-row-body">
@@ -75,7 +100,9 @@ export default function ChatList({
 
                   <div className="chat-row-bottom">
                     <p>{lastMessage}</p>
-                    {unread > 0 ? <span className="unread-pill">{unread}</span> : null}
+                    {unread > 0 && (
+                      <span className="unread-pill">{unread > 99 ? "99+" : unread}</span>
+                    )}
                   </div>
                 </div>
               </button>
@@ -83,6 +110,14 @@ export default function ChatList({
           })
         )}
       </div>
+
+      {muteModalChat && (
+        <MuteModal
+          chatId={muteModalChat.chatId}
+          chatName={muteModalChat.chatName}
+          onClose={() => setMuteModalChat(null)}
+        />
+      )}
     </section>
   );
 }

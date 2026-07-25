@@ -53,10 +53,14 @@ export default function Sidebar({
             <span className="nav-icon">{item.icon}</span>
             <span>{item.id}</span>
             {item.id === "Friends" && incomingFriendCount > 0 ? (
-              <span className="nav-badge">{incomingFriendCount}</span>
+              <span className="nav-badge friend-badge">{incomingFriendCount}</span>
             ) : null}
             {item.id === "Notifications" && unreadCount > 0 ? (
-              <span className="nav-badge">{unreadCount}</span>
+              <span className="nav-badge notif-badge">
+                {unreadCount > 99 ? "99+" : unreadCount}
+                {/* Animated pulse ring for notification bell */}
+                <span className="notif-badge-ring" />
+              </span>
             ) : null}
           </button>
         ))}

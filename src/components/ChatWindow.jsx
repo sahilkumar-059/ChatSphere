@@ -1,3 +1,4 @@
+import Composer from "./Composer";
 import MessageBubble from "./MessageBubble";
 
 export default function ChatWindow({
@@ -10,10 +11,8 @@ export default function ChatWindow({
   onTyping,
   isTyping,
   typingUser,
-  onImageUpload,
   onDropFiles,
   onDragOver,
-  onDragLeave,
   dragPreview,
   onRecordToggle,
   isRecording,
@@ -22,14 +21,8 @@ export default function ChatWindow({
   currentUserPresence,
   onStartVoiceCall,
   onStartVideoCall,
+  onSendFile,
 }) {
-  const handleKeyDown = (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      onSendMessage();
-    }
-  };
-
   if (!chat) {
     return (
       <section className="chat-window-shell">
@@ -43,15 +36,7 @@ export default function ChatWindow({
   }
 
   return (
-    <section
-      className="chat-window-shell"
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={(event) => {
-        event.preventDefault();
-        onDropFiles(event.dataTransfer.files);
-      }}
-    >
+    <section className="chat-window-shell">
       <header className="chat-window-header">
         <div className="chat-window-title">
           <div className="chat-window-avatar">
@@ -123,37 +108,17 @@ export default function ChatWindow({
         <div ref={messagesEndRef} />
       </div>
 
-      <footer className="composer-shell">
-        <div className="composer-actions">
-          <button className="icon-button" type="button" onClick={onImageUpload} aria-label="Attach file">
-            📎
-          </button>
-          <button
-            className={`icon-button ${isRecording ? "recording" : ""}`}
-            type="button"
-            onClick={onRecordToggle}
-            aria-label="Record voice message"
-          >
-            🎤
-          </button>
-        </div>
-
-        <textarea
-          className="composer-input"
-          placeholder="Type a message..."
-          value={messageInput}
-          onChange={(event) => {
-            onMessageInputChange(event.target.value);
-            onTyping();
-          }}
-          onKeyDown={handleKeyDown}
-          rows={1}
-        />
-
-        <button className="primary-button compact send-button" onClick={onSendMessage} aria-label="Send message">
-          ➤
-        </button>
-      </footer>
+      <Composer
+        messageInput={messageInput}
+        onMessageInputChange={onMessageInputChange}
+        onSendMessage={onSendMessage}
+        onTyping={onTyping}
+        isRecording={isRecording}
+        onDropFiles={onDropFiles}
+        onDragOver={onDragOver}
+        dragPreview={dragPreview}
+        onSendFile={onSendFile}
+      />
 
       <div className="hidden-actions">
         <button onClick={onMarkSeen}>Mark Seen</button>

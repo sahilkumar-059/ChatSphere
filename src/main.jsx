@@ -5,6 +5,7 @@ import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthPage from "./components/auth/AuthPage";
 import App from "./App.jsx";
+import "./i18n/i18n";
 import "./index.css";
 
 createRoot(document.getElementById("root")).render(
