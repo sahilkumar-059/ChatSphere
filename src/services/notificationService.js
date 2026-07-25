@@ -286,3 +286,108 @@ export function subscribeToNotificationSettings(userId, callback) {
     callback(snap.exists() ? { ...DEFAULT_SETTINGS, ...snap.data() } : { ...DEFAULT_SETTINGS });
   }, () => callback({ ...DEFAULT_SETTINGS }));
 }
+
+// ============================================================
+// 8. CHAT MUTE FUNCTIONALITY
+// ============================================================
+
+export const MUTE_DURATION_OPTIONS = [
+  { id: "8h", label: "8 hours", icon: "🕐" },
+  { id: "1d", label: "1 day", icon: "📅" },
+  { id: "1w", label: "1 week", icon: "📆" },
+  { id: "forever", label: "Forever", icon: "∞" },
+];
+
+export async function muteChat(userId, chatId, duration) {
+  if (!userId || !chatId || !duration) return;
+  try {
+    let mutedUntil = null;
+    if (duration !== "forever") {
+      const now = new Date();
+      const durations = {
+        "8h": 8 * 60 * 60 * 1000,
+        "1d": 24 * 60 * 60 * 1000,
+        "1w": 7 * 24 * 60 * 60 * 1000,
+      };
+      mutedUntil = new Date(now.getTime() + durations[duration]);
+    }
+    await setDoc(doc(db, "chatMutes", `${userId}_${chatId}`), {
+      userId,
+      chatId,
+      mutedDuration: duration,
+      mutedUntil: mutedUntil ? serverTimestamp() : null,
+      isMuted: true,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.error("notificationService: Error muting chat:", error);
+  }
+}
+
+export async function unmuteChat(userId, chatId) {
+  if (!userId || !chatId) return;
+  try {
+    await deleteDoc(doc(db, "chatMutes", `${userId}_${chatId}`));
+  } catch (error) {
+    console.error("notificationService: Error unmuting chat:", error);
+  }
+}
+
+export async function getChatMuteStatus(userId, chatId) {
+  if (!userId || !chatId) return { isMuted: false };
+  try {
+    const snap = await getDoc(doc(db, "chatMutes", `${userId}_${chatId}`));
+    if (!snap.exists()) return { isMuted: false };
+    const data = snap.data();
+    if (data.mutedDuration === "forever") {
+      return { isMuted: true, mutedDuration: "forever", mutedUntil: null };
+    }
+    if (data.mutedUntil) {
+      const mutedUntil = data.mutedUntil.toDate();
+      const now = new Date();
+      if (mutedUntil > now) {
+        return { isMuted: true, mutedDuration: data.mutedDuration, mutedUntil };
+      }
+      // Mute expired, delete it
+      await deleteDoc(doc(db, "chatMutes", `${userId}_${chatId}`));
+    }
+    return { isMuted: false };
+  } catch (error) {
+    console.error("notificationService: Error getting mute status:", error);
+    return { isMuted: false };
+  }
+}
+
+export function formatMuteExpiry(mutedUntil) {
+  if (!mutedUntil) return "Forever";
+  const now = new Date();
+  const d = mutedUntil instanceof Date ? mutedUntil : mutedUntil.toDate?.() || new Date(mutedUntil);
+  const diffMs = d - now;
+  const diffMin = Math.floor(diffMs / (1000 * 60));
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHr / 24);
+
+  if (diffMin < 60) return `${diffMin} minutes`;
+  if (diffHr < 24) return `${diffHr} hours`;
+  return `${diffDays} days`;
+}
+
+// ============================================================
+// 9. UNREAD COUNT SUMMARY (for App.jsx)
+// ============================================================
+
+export function subscribeToUnreadCountSummary(userId, callback) {
+  return subscribeToUnreadCounts(userId, callback);
+}
+
+export function resetChatUnreadCount(userId, chatId) {
+  return resetChatUnread(userId, chatId);
+}
+
+export function subscribeToChatUnreadCounts(userId, callback) {
+  return subscribeToUnreadCounts(userId, callback);
+}
+
+export function markAllAsRead(userId) {
+  return markAllNotificationsRead(userId);
+}
