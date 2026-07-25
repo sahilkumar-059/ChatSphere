@@ -85,7 +85,6 @@ export default function App() {
   const [dragPreview, setDragPreview] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
-  const [activeChatIdForNotif, setActiveChatIdForNotif] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [, setCallState] = useState(null);
@@ -123,9 +122,6 @@ export default function App() {
     if (chatId && user?.uid) {
       resetChatUnreadCount(user.uid, chatId).catch(() => {});
     }
-    
-    // Track which chat is active for notification smart logic
-    setActiveChatIdForNotif(chatId);
   };
 
   useEffect(() => {
@@ -268,11 +264,13 @@ export default function App() {
       if (!cancelled) {
         setMessages(chatMessages);
       }
-      const unread = chatMessages.filter((message) => message.senderId !== user.uid && message.status !== "seen");
-      setNotificationCount(unread.length);
 
+      // Show browser notifications for new messages in the open chat
       if (settings.notificationsEnabled && typeof Notification !== "undefined" && Notification.permission === "granted") {
-        unread.forEach((message) => {
+        const unseen = chatMessages.filter(
+          (message) => message.senderId !== user.uid && message.status !== "seen"
+        );
+        unseen.forEach((message) => {
           new Notification(message.senderName || "New message", {
             body: message.text || (message.type === "image" ? "Shared an image" : "New message"),
           });
@@ -612,9 +610,13 @@ export default function App() {
     }
     
     // Handle case where React click event is passed instead of options object
-    const { text, type = "text", imageUrl = "", audioUrl = "" } = options?.nativeEvent ? {} : options;
+    const opts = options?.nativeEvent ? {} : options;
+    const { text, type = "text", imageUrl = "", audioUrl = "", documentUrl = "", fileName = "", fileSize = 0, mimeType = "" } = opts;
     const resolvedText = typeof text === "string" ? text : messageInput;
-    if (!resolvedText.trim() && !imageUrl && !audioUrl) return;
+    
+    // Allow sending if there's text, image, audio, or document content
+    const hasContent = resolvedText.trim() || imageUrl || audioUrl || documentUrl;
+    if (!hasContent) return;
 
     // Use the existing chatId from selectedChat
     const chatId = currentChatId;
@@ -630,10 +632,6 @@ export default function App() {
     console.log("text:", resolvedText);
     console.log("selectedChat:", selectedChat);
 
-    // Check if receiver is viewing this chat (for notification smart logic)
-    const receiverChatId = currentChatId;
-    const isReceiverViewingChat = activeChatIdForNotif === receiverChatId && selectedChat?.friendId === receiverId;
-
     const messagePayload = {
       senderId: user.uid,
       senderName: user.displayName || "You",
@@ -641,9 +639,12 @@ export default function App() {
       text: resolvedText.trim(),
       imageUrl,
       audioUrl,
+      documentUrl,
+      fileName,
+      fileSize,
+      mimeType,
       type,
       receiverId,
-      isReceiverViewingChat,
     };
 
     const clientKey = `${user.uid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -676,15 +677,45 @@ export default function App() {
 
   const uploadFileAndSend = async (file, mediaType = "image") => {
     if (!user || !file) return;
-    const uploadRef = storageRef(storage, `chat-uploads/${user.uid}/${Date.now()}-${file.name}`);
-    await uploadBytes(uploadRef, file);
-    const downloadUrl = await getDownloadURL(uploadRef);
-    await sendMessage({
-      text: mediaType === "audio" ? "Voice message" : "",
-      type: mediaType,
-      imageUrl: mediaType === "image" ? downloadUrl : "",
-      audioUrl: mediaType === "audio" ? downloadUrl : "",
-    });
+    
+    const fileName = file.name;
+    const fileSize = file.size;
+    const mimeType = file.type;
+
+    // Upload to Firebase Storage
+    let downloadUrl = null;
+    try {
+      const uploadPath = `chat-uploads/${user.uid}/${Date.now()}-${fileName}`;
+      const uploadRef = storageRef(storage, uploadPath);
+      await uploadBytes(uploadRef, file);
+      downloadUrl = await getDownloadURL(uploadRef);
+      console.log(`uploadFileAndSend: Uploaded ${mediaType} to ${downloadUrl}`);
+    } catch (uploadError) {
+      console.error("uploadFileAndSend: Upload failed:", uploadError);
+      return;
+    }
+
+    // Build message payload with download URL based on media type
+    let messagePayload;
+    if (mediaType === "image") {
+      messagePayload = { type: "image", imageUrl: downloadUrl, text: "" };
+    } else if (mediaType === "video") {
+      messagePayload = { type: "video", imageUrl: downloadUrl, text: "📹 Video" };
+    } else if (mediaType === "audio" || mediaType === "voice") {
+      messagePayload = { type: "audio", audioUrl: downloadUrl, text: "🎤 Voice message" };
+    } else if (mediaType === "document") {
+      messagePayload = { type: "document", documentUrl: downloadUrl, text: `📎 ${fileName}` };
+    } else {
+      messagePayload = { type: mediaType, text: "" };
+    }
+
+    // Add file metadata
+    messagePayload.fileName = fileName;
+    messagePayload.fileSize = fileSize;
+    messagePayload.mimeType = mimeType;
+
+    // Send the message via existing chat pipeline
+    await sendMessage(messagePayload);
   };
 
   const handleImageUpload = async (event) => {
@@ -825,8 +856,32 @@ export default function App() {
               onStartVoiceCall={() => startCall(false)}
               onStartVideoCall={() => startCall(true)}
               onSendFile={(files) => {
-                const file = files?.[0]?.file;
-                if (file) uploadFileAndSend(file, file.type.startsWith("audio/") ? "audio" : "image");
+                const item = files?.[0];
+                if (!item?.file && item?.category !== "location" && item?.category !== "contact") return;
+                
+                // Use the explicit category from AttachmentSheet/Composer
+                const category = item.category || "image";
+                const file = item.file;
+                
+                // Location sharing
+                if (category === "location" && item.latitude && item.longitude) {
+                  sendMessage({
+                    text: `📍 ${item.name || "Location"}\nhttps://maps.google.com/maps?q=${item.latitude},${item.longitude}`,
+                    type: "text",
+                  });
+                  return;
+                }
+                
+                // Contact sharing
+                if (category === "contact" && item.contactData) {
+                  sendMessage({
+                    text: `👤 ${item.contactData.name}\n📞 ${item.contactData.phone}`,
+                    type: "text",
+                  });
+                  return;
+                }
+                
+                if (file) uploadFileAndSend(file, category);
               }}
             />
           </>

@@ -17,75 +17,32 @@ import {
 import { db } from "../firebase";
 
 // ============================================================
-// 1. NOTIFICATION DOCUMENT CREATION
+// FIRESTORE STRUCTURE
 // ============================================================
+// notifications/{notificationId} - One per notification
+//   receiverId, senderId, senderName, senderPhoto, chatId, type, message, isRead, createdAt
+//
+// unreadCounts/{userId} - Single doc per user
+//   total: number (global unread count for sidebar green dot)
+//   chats: { [chatId]: number } (per-chat unread for green badges)
+//   updatedAt: timestamp
 
-/**
- * Create a new notification document in Firestore.
- * Respects notification settings and mute settings.
- * If the receiver is viewing the chat, does NOT create unread badge.
- */
+// ============================================================
+// 1. CREATE NOTIFICATION
+// ============================================================
 export async function createNotification({
   receiverId,
   type,
-  title,
+  title = "",
   message = "",
   senderId = "",
   senderName = "",
   senderPhoto = "",
-  referenceId = "",
-  isReceiverViewingChat = false,
+  chatId = "",
+  isRead = false,
 }) {
-  if (!receiverId || !type || !title) {
-    console.error("notificationService: Missing required fields", { receiverId, type, title });
-    return null;
-  }
-
+  if (!receiverId || !type) return null;
   try {
-    // 1. Check if receiver has muted all notifications globally
-    const notifSettings = await getNotificationSettings(receiverId);
-    if (notifSettings.muteAll) {
-      console.log("notificationService: User has globally muted all notifications");
-      return null;
-    }
-
-    // 2. Check per-type settings
-    const typeKey = getTypeKey(type);
-    if (notifSettings[typeKey] === false) {
-      console.log(`notificationService: ${type} notifications disabled for user`);
-      return null;
-    }
-
-    // 3. Check per-chat mute settings for message types
-    if (type === "message" && referenceId) {
-      const chatMute = await getChatMuteStatus(receiverId, referenceId);
-      if (chatMute.isMuted) {
-        console.log(`notificationService: Chat ${referenceId} is muted until ${chatMute.mutedUntil}`);
-        // Still create the notification but don't mark it as urgent
-        // We'll still create it but skip sound/popup
-      }
-    }
-
-    // 4. If receiver is viewing this chat, skip unread increment
-    if (isReceiverViewingChat) {
-      console.log("notificationService: Receiver is viewing chat, skipping unread increment");
-      const notifRef = collection(db, "notifications");
-      await addDoc(notifRef, {
-        receiverId,
-        type,
-        title,
-        message,
-        senderId,
-        senderName,
-        senderPhoto,
-        referenceId,
-        isRead: true, // Mark as read since they're viewing
-        createdAt: serverTimestamp(),
-      });
-      return null;
-    }
-
-    // 5. Create notification with isRead: false
     const notifRef = collection(db, "notifications");
     const docRef = await addDoc(notifRef, {
       receiverId,
@@ -95,15 +52,16 @@ export async function createNotification({
       senderId,
       senderName,
       senderPhoto,
-      referenceId,
-      isRead: false,
+      chatId,
+      isRead: isRead ? true : false,
       createdAt: serverTimestamp(),
     });
 
-    // 6. Increment unread count in user's notification summary
-    await incrementUnreadCount(receiverId, 1);
+    // If NOT already read (receiver is not viewing), increment counts
+    if (!isRead) {
+      await incrementChatUnread(receiverId, chatId || type);
+    }
 
-    console.log(`notificationService: Created ${type} notification for ${receiverId}: ${title}`);
     return docRef.id;
   } catch (error) {
     console.error("notificationService: Error creating notification:", error);
@@ -111,371 +69,121 @@ export async function createNotification({
   }
 }
 
-function getTypeKey(type) {
-  const map = {
-    message: "messages",
-    friend: "friends",
-    call: "calls",
-    system: "system",
-    image: "messages",
-    voice: "messages",
-  };
-  return map[type] || type;
-}
-
 // ============================================================
-// 2. UNREAD COUNT MANAGEMENT
+// 2. UNREAD COUNTS (stored in unreadCounts/{userId})
 // ============================================================
 
-// Increment or decrement the global unread count for a user
-async function incrementUnreadCount(userId, amount) {
+// Increment both total and per-chat count
+export async function incrementChatUnread(userId, chatId) {
+  if (!userId || !chatId) return;
   try {
-    const summaryRef = doc(db, "notificationSummary", userId);
-    await setDoc(summaryRef, {
-      unreadCount: increment(amount),
-      lastUpdated: serverTimestamp(),
-    }, { merge: true });
-  } catch (error) {
-    console.error("notificationService: Error incrementing unread count:", error);
-  }
-}
-
-// Reset unread count to 0
-async function resetUnreadCount(userId) {
-  try {
-    const summaryRef = doc(db, "notificationSummary", userId);
-    await setDoc(summaryRef, {
-      unreadCount: 0,
-      lastUpdated: serverTimestamp(),
-    }, { merge: true });
-  } catch (error) {
-    console.error("notificationService: Error resetting unread count:", error);
-  }
-}
-
-// Get unread count from summary (fast, no query)
-export async function getUnreadCountFromSummary(userId) {
-  if (!userId) return 0;
-  try {
-    const summaryRef = doc(db, "notificationSummary", userId);
-    const snap = await getDoc(summaryRef);
-    if (snap.exists()) {
-      return snap.data().unreadCount || 0;
-    }
-    return 0;
-  } catch {
-    return 0;
-  }
-}
-
-// Subscribe to unread count via summary document (realtime)
-export function subscribeToUnreadCountSummary(userId, callback) {
-  if (!userId) return () => {};
-
-  const summaryRef = doc(db, "notificationSummary", userId);
-  return onSnapshot(summaryRef, (snap) => {
-    if (snap.exists()) {
-      callback(snap.data().unreadCount || 0);
-    } else {
-      callback(0);
-    }
-  }, (error) => {
-    console.error("notificationService: Unread count summary error:", error);
-    callback(0);
-  });
-}
-
-// ============================================================
-// 3. NOTIFICATION SETTINGS (per user)
-// ============================================================
-
-const DEFAULT_NOTIFICATION_SETTINGS = {
-  // Messages
-  messages: true,
-  messageSound: true,
-  messagePopup: true,
-  messageVibration: true,
-  messageBadge: true,
-  // Calls
-  calls: true,
-  missedCallAlerts: true,
-  // Friends
-  friends: true,
-  friendAccepted: true,
-  // Global
-  muteAll: false,
-};
-
-export async function getNotificationSettings(userId) {
-  if (!userId) return { ...DEFAULT_NOTIFICATION_SETTINGS };
-  try {
-    const settingsRef = doc(db, "notificationSettings", userId);
-    const snap = await getDoc(settingsRef);
-    if (snap.exists()) {
-      return { ...DEFAULT_NOTIFICATION_SETTINGS, ...snap.data() };
-    }
-    return { ...DEFAULT_NOTIFICATION_SETTINGS };
-  } catch {
-    return { ...DEFAULT_NOTIFICATION_SETTINGS };
-  }
-}
-
-export async function updateNotificationSetting(userId, key, value) {
-  if (!userId) return;
-  try {
-    const settingsRef = doc(db, "notificationSettings", userId);
-    await setDoc(settingsRef, {
-      [key]: value,
+    const ref = doc(db, "unreadCounts", userId);
+    // Use dot notation to increment nested map field + total
+    const updates = {
+      total: increment(1),
+      [`chats.${chatId}`]: increment(1),
       updatedAt: serverTimestamp(),
-    }, { merge: true });
+    };
+    await setDoc(ref, updates, { merge: true });
   } catch (error) {
-    console.error("notificationService: Error updating notification setting:", error);
+    console.error("notificationService: Error incrementing unread:", error);
   }
 }
 
-export async function updateNotificationSettings(userId, settings) {
-  if (!userId) return;
+// Reset a specific chat's unread to 0, and decrement total
+export async function resetChatUnread(userId, chatId) {
+  if (!userId || !chatId) return;
   try {
-    const settingsRef = doc(db, "notificationSettings", userId);
-    await setDoc(settingsRef, {
-      ...settings,
+    const ref = doc(db, "unreadCounts", userId);
+    const snap = await getDoc(ref);
+    let current = 0;
+    if (snap.exists()) {
+      current = snap.data()?.chats?.[chatId] || 0;
+    }
+    if (current <= 0) return; // nothing to reset
+    await setDoc(ref, {
+      total: increment(-current),
+      [`chats.${chatId}`]: 0,
       updatedAt: serverTimestamp(),
-    }, { merge: true });
-  } catch (error) {
-    console.error("notificationService: Error updating notification settings:", error);
-  }
-}
-
-export function subscribeToNotificationSettings(userId, callback) {
-  if (!userId) return () => {};
-  const settingsRef = doc(db, "notificationSettings", userId);
-  return onSnapshot(settingsRef, (snap) => {
-    if (snap.exists()) {
-      callback({ ...DEFAULT_NOTIFICATION_SETTINGS, ...snap.data() });
-    } else {
-      callback({ ...DEFAULT_NOTIFICATION_SETTINGS });
-    }
-  }, (error) => {
-    console.error("notificationService: Settings subscription error:", error);
-    callback({ ...DEFAULT_NOTIFICATION_SETTINGS });
-  });
-}
-
-// ============================================================
-// 4. PER-CHAT MUTE SETTINGS
-// ============================================================
-
-const MUTE_DURATIONS = {
-  "1h": 1 * 60 * 60 * 1000,
-  "8h": 8 * 60 * 60 * 1000,
-  "24h": 24 * 60 * 60 * 1000,
-  "7d": 7 * 24 * 60 * 60 * 1000,
-  always: Infinity,
-};
-
-export async function muteChat(userId, chatId, duration) {
-  if (!userId || !chatId) return;
-  try {
-    const muteRef = doc(db, "chatMutes", `${userId}_${chatId}`);
-    let mutedUntil = null;
-    if (duration === "always") {
-      mutedUntil = new Date(9999, 11, 31); // Far future
-    } else {
-      mutedUntil = new Date(Date.now() + (MUTE_DURATIONS[duration] || 0));
-    }
-    await setDoc(muteRef, {
-      userId,
-      chatId,
-      mutedUntil,
-      mutedDuration: duration,
-      createdAt: serverTimestamp(),
-    }, { merge: true });
-    console.log(`notificationService: Muted chat ${chatId} for ${duration}`);
-  } catch (error) {
-    console.error("notificationService: Error muting chat:", error);
-  }
-}
-
-export async function unmuteChat(userId, chatId) {
-  if (!userId || !chatId) return;
-  try {
-    const muteRef = doc(db, "chatMutes", `${userId}_${chatId}`);
-    await deleteDoc(muteRef);
-    console.log(`notificationService: Unmuted chat ${chatId}`);
-  } catch (error) {
-    console.error("notificationService: Error unmuting chat:", error);
-  }
-}
-
-export async function getChatMuteStatus(userId, chatId) {
-  if (!userId || !chatId) {
-    return { isMuted: false, mutedUntil: null, mutedDuration: null };
-  }
-  try {
-    const muteRef = doc(db, "chatMutes", `${userId}_${chatId}`);
-    const snap = await getDoc(muteRef);
-    if (snap.exists()) {
-      const data = snap.data();
-      const mutedUntil = data.mutedUntil?.toDate?.() || data.mutedUntil;
-      // Check if mute has expired
-      if (mutedUntil && new Date(mutedUntil) > new Date()) {
-        return {
-          isMuted: true,
-          mutedUntil,
-          mutedDuration: data.mutedDuration,
-        };
-      }
-      // Mute expired, clean up
-      if (mutedUntil && new Date(mutedUntil) <= new Date()) {
-        await deleteDoc(muteRef).catch(() => {});
-      }
-    }
-    return { isMuted: false, mutedUntil: null, mutedDuration: null };
-  } catch {
-    return { isMuted: false, mutedUntil: null, mutedDuration: null };
-  }
-}
-
-export function subscribeToChatMuteStatus(userId, chatId, callback) {
-  if (!userId || !chatId) return () => {};
-  const muteRef = doc(db, "chatMutes", `${userId}_${chatId}`);
-  return onSnapshot(muteRef, (snap) => {
-    if (snap.exists()) {
-      const data = snap.data();
-      const mutedUntil = data.mutedUntil?.toDate?.() || data.mutedUntil;
-      if (mutedUntil && new Date(mutedUntil) > new Date()) {
-        callback({ isMuted: true, mutedUntil, mutedDuration: data.mutedDuration });
-        return;
-      }
-    }
-    callback({ isMuted: false, mutedUntil: null, mutedDuration: null });
-  }, () => {
-    callback({ isMuted: false, mutedUntil: null, mutedDuration: null });
-  });
-}
-
-// ============================================================
-// 5. MESSAGE UNREAD COUNT PER CHAT
-// ============================================================
-
-/**
- * Track unread messages per chat using a subcollection or a map in the chat doc.
- * We'll store unreadCounts as a map in notificationSummary for each user:
- *   notificationSummary/{userId}/chatUnread/{chatId}: count
- *   OR simpler: store an object map on the notificationSummary doc
- */
-export function subscribeToChatUnreadCounts(userId, callback) {
-  if (!userId) return () => {};
-  const summaryRef = doc(db, "notificationSummary", userId);
-  return onSnapshot(summaryRef, (snap) => {
-    if (snap.exists()) {
-      const data = snap.data();
-      callback(data.chatUnread || {});
-    } else {
-      callback({});
-    }
-  }, () => callback({}));
-}
-
-/**
- * Increment or set unread count for a specific chat.
- * Used by sendMessage to mark unread when receiver isn't viewing.
- */
-export async function incrementChatUnreadCount(userId, chatId) {
-  if (!userId || !chatId) return;
-  try {
-    const summaryRef = doc(db, "notificationSummary", userId);
-    await setDoc(summaryRef, {
-      [`chatUnread.${chatId}`]: increment(1),
-      unreadCount: increment(1),
-      lastUpdated: serverTimestamp(),
-    }, { merge: true });
-  } catch (error) {
-    console.error("notificationService: Error incrementing chat unread:", error);
-  }
-}
-
-/**
- * Reset unread count for a specific chat (when user opens the chat).
- */
-export async function resetChatUnreadCount(userId, chatId) {
-  if (!userId || !chatId) return;
-  try {
-    const summaryRef = doc(db, "notificationSummary", userId);
-    // Get current unread for this chat to know how much to subtract from total
-    const snap = await getDoc(summaryRef);
-    let currentUnread = 0;
-    if (snap.exists()) {
-      const data = snap.data();
-      currentUnread = data.chatUnread?.[chatId] || 0;
-    }
-    await setDoc(summaryRef, {
-      [`chatUnread.${chatId}`]: 0,
-      unreadCount: Math.max(0, increment(-currentUnread)),
-      lastUpdated: serverTimestamp(),
     }, { merge: true });
   } catch (error) {
     console.error("notificationService: Error resetting chat unread:", error);
   }
 }
 
-// ============================================================
-// 6. SUBSCRIPTIONS (existing enhanced)
-// ============================================================
+// Mark all unread notifications as read + reset counts
+// Mark all unread notification docs as read + reset counts
+export async function markAllNotificationsRead(userId) {
+  if (!userId) return;
+  try {
+    // 1. Mark all unread notification docs
+    const q = query(
+      collection(db, "notifications"),
+      where("receiverId", "==", userId),
+      where("isRead", "==", false)
+    );
+    const snap = await getDocs(q);
+    const batch = writeBatch(db);
+    snap.docs.forEach((d) => batch.update(d.ref, { isRead: true }));
+    await batch.commit();
 
+    // 2. Reset unread counts
+    const ref = doc(db, "unreadCounts", userId);
+    await setDoc(ref, {
+      total: 0,
+      chats: {},
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.error("notificationService: Error marking all read:", error);
+  }
+}
+
+// Subscribe to unread counts (total + per-chat map)
+export function subscribeToUnreadCounts(userId, callback) {
+  if (!userId) return () => {};
+  const ref = doc(db, "unreadCounts", userId);
+  return onSnapshot(ref, (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      callback({
+        total: data.total || 0,
+        chats: data.chats || {},
+      });
+    } else {
+      callback({ total: 0, chats: {} });
+    }
+  }, () => callback({ total: 0, chats: {} }));
+}
+
+// ============================================================
+// 3. SUBSCRIBE TO NOTIFICATIONS (for notification page)
+// ============================================================
 export function subscribeToNotifications(userId, callback) {
   if (!userId) return () => {};
-
-  const notifQuery = query(
+  const q = query(
     collection(db, "notifications"),
     where("receiverId", "==", userId)
   );
-
-  return onSnapshot(
-    notifQuery,
-    (snapshot) => {
-      const notifications = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          ...data,
-          createdAt: data.createdAt?.toDate?.() || new Date(),
-        };
-      });
-      notifications.sort((a, b) => {
-        const aTime = a.createdAt?.getTime?.() || 0;
-        const bTime = b.createdAt?.getTime?.() || 0;
-        return bTime - aTime;
-      });
-      callback(notifications);
-    },
-    (error) => {
-      console.error("notificationService: Subscription error:", error);
-      callback([]);
-    }
-  );
+  return onSnapshot(q, (snap) => {
+    const list = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.() || new Date(),
+      };
+    });
+    // Sort newest first
+    list.sort((a, b) => (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0));
+    callback(list);
+  }, () => callback([]));
 }
 
-export function subscribeToUnreadCount(userId, callback) {
-  if (!userId) return () => {};
-
-  const unreadQuery = query(
-    collection(db, "notifications"),
-    where("receiverId", "==", userId),
-    where("isRead", "==", false)
-  );
-
-  return onSnapshot(
-    unreadQuery,
-    (snapshot) => {
-      callback(snapshot.docs.length);
-    },
-    (error) => {
-      console.error("notificationService: Unread count error:", error);
-    }
-  );
-}
-
+// ============================================================
+// 4. MARK NOTIFICATION AS READ (single)
+// ============================================================
+// Mark a single notification as read
 export async function markAsRead(notificationId) {
   if (!notificationId) return;
   try {
@@ -485,49 +193,11 @@ export async function markAsRead(notificationId) {
   }
 }
 
-export async function markAllAsRead(userId) {
-  if (!userId) return;
-  try {
-    const notifQuery = query(
-      collection(db, "notifications"),
-      where("receiverId", "==", userId),
-      where("isRead", "==", false)
-    );
-    const snapshot = await getDocs(notifQuery);
-    const batch = writeBatch(db);
-    snapshot.docs.forEach((docSnap) => {
-      batch.update(docSnap.ref, { isRead: true });
-    });
-    await batch.commit();
-    // Reset unread count
-    await resetUnreadCount(userId);
-    console.log(`notificationService: Marked ${snapshot.docs.length} notifications as read`);
-  } catch (error) {
-    console.error("notificationService: Error marking all as read:", error);
-  }
-}
-
-export async function clearAllNotifications(userId) {
-  if (!userId) return;
-  try {
-    const notifQuery = query(
-      collection(db, "notifications"),
-      where("receiverId", "==", userId)
-    );
-    const snapshot = await getDocs(notifQuery);
-    const batch = writeBatch(db);
-    snapshot.docs.forEach((docSnap) => {
-      batch.delete(docSnap.ref);
-    });
-    await batch.commit();
-    await resetUnreadCount(userId);
-    console.log(`notificationService: Cleared ${snapshot.docs.length} notifications`);
-  } catch (error) {
-    console.error("notificationService: Error clearing notifications:", error);
-  }
-}
-
-export async function deleteSingleNotification(notificationId) {
+// ============================================================
+// 5. DELETE NOTIFICATION
+// ============================================================
+// Delete a single notification
+export async function deleteNotification(notificationId) {
   if (!notificationId) return;
   try {
     await deleteDoc(doc(db, "notifications", notificationId));
@@ -536,21 +206,24 @@ export async function deleteSingleNotification(notificationId) {
   }
 }
 
-export async function getUnreadNotificationCount(userId) {
-  if (!userId) return 0;
+export async function clearAllNotifications(userId) {
+  if (!userId) return;
   try {
-    const notifQuery = query(
-      collection(db, "notifications"),
-      where("receiverId", "==", userId),
-      where("isRead", "==", false)
-    );
-    const snapshot = await getDocs(notifQuery);
-    return snapshot.docs.length;
-  } catch {
-    return 0;
+    const q = query(collection(db, "notifications"), where("receiverId", "==", userId));
+    const snap = await getDocs(q);
+    const batch = writeBatch(db);
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    const ref = doc(db, "unreadCounts", userId);
+    await setDoc(ref, { total: 0, chats: {}, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (error) {
+    console.error("notificationService: Error clearing notifications:", error);
   }
 }
 
+// ============================================================
+// 6. FORMAT RELATIVE TIME
+// ============================================================
 export function formatRelativeTime(date) {
   if (!date) return "";
   const now = new Date();
@@ -567,40 +240,49 @@ export function formatRelativeTime(date) {
   if (diffMin < 60) return `${diffMin}m ago`;
   if (diffHr < 2) return "1h ago";
   if (diffHr < 24) return `${diffHr}h ago`;
-
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-
   if (diffDays < 7) return `${diffDays}d ago`;
-
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   if (diffDays < 14) return `Last ${dayNames[d.getDay()]}`;
-
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 // ============================================================
-// 7. MUTE DURATION HELPERS
+// 7. NOTIFICATION SETTINGS (simplified)
 // ============================================================
+const DEFAULT_SETTINGS = {
+  messages: true,
+  calls: true,
+  friends: true,
+  messageSound: true,
+  messageVibration: true,
+  muteAll: false,
+};
 
-export const MUTE_DURATION_OPTIONS = [
-  { id: "1h", label: "1 Hour", icon: "⏰" },
-  { id: "8h", label: "8 Hours", icon: "🌙" },
-  { id: "24h", label: "24 Hours", icon: "📅" },
-  { id: "7d", label: "7 Days", icon: "📆" },
-  { id: "always", label: "Always", icon: "🔇" },
-];
-
-export function getMuteDurationLabel(duration) {
-  const option = MUTE_DURATION_OPTIONS.find(o => o.id === duration);
-  return option?.label || duration;
+export async function getNotificationSettings(userId) {
+  if (!userId) return { ...DEFAULT_SETTINGS };
+  try {
+    const snap = await getDoc(doc(db, "notificationSettings", userId));
+    return snap.exists() ? { ...DEFAULT_SETTINGS, ...snap.data() } : { ...DEFAULT_SETTINGS };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
 }
 
-export function formatMuteExpiry(mutedUntil) {
-  if (!mutedUntil) return "";
-  const date = mutedUntil instanceof Date ? mutedUntil : mutedUntil.toDate?.();
-  if (!date) return "";
-  if (date.getFullYear() >= 9999) return "Always";
-  return `Until ${date.toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+export async function updateNotificationSetting(userId, key, value) {
+  if (!userId) return;
+  try {
+    await setDoc(doc(db, "notificationSettings", userId), { [key]: value, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (error) {
+    console.error("notificationService: Error updating setting:", error);
+  }
+}
+
+export function subscribeToNotificationSettings(userId, callback) {
+  if (!userId) return () => {};
+  return onSnapshot(doc(db, "notificationSettings", userId), (snap) => {
+    callback(snap.exists() ? { ...DEFAULT_SETTINGS, ...snap.data() } : { ...DEFAULT_SETTINGS });
+  }, () => callback({ ...DEFAULT_SETTINGS }));
 }

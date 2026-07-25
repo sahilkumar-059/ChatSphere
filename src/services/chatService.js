@@ -12,7 +12,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import { createNotification, incrementChatUnreadCount } from "./notificationService";
+import { createNotification } from "./notificationService";
 
 // Generate a unique chat ID for two users (sorted to ensure consistency)
 function getChatId(userId1, userId2) {
@@ -63,26 +63,18 @@ export async function sendMessage(chatId, messageData) {
     updatedAt: serverTimestamp(),
   });
 
-  // Smart notification logic: check if receiver is viewing this chat
+  // Create notification for the receiver
   if (messageData.receiverId && messageData.receiverId !== messageData.senderId) {
-    const isReceiverViewing = messageData.isReceiverViewingChat === true;
-    
     await createNotification({
       receiverId: messageData.receiverId,
       type: "message",
       title: "New message",
-      message: messageData.text || (messageData.type === "image" ? "Sent an image" : "Sent a voice message"),
+      message: messageData.text || (messageData.type === "image" ? "📷 Image" : "🎤 Voice"),
       senderId: messageData.senderId,
       senderName: messageData.senderName || "Someone",
       senderPhoto: messageData.senderPhotoURL || "",
-      referenceId: chatId,
-      isReceiverViewingChat: isReceiverViewing,
+      chatId,
     }).catch((err) => console.error("Failed to create notification:", err));
-
-    // Increment per-chat unread count (only if receiver is NOT viewing)
-    if (!isReceiverViewing) {
-      await incrementChatUnreadCount(messageData.receiverId, chatId).catch(() => {});
-    }
   }
 
   // Simulate delivery and read receipts
