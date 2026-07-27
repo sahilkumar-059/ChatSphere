@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
-import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
-import { db, storage } from "./firebase";
+import { db } from "./firebase";
+import { uploadToCloudinary } from "./services/claudinary";
 import { useAuth } from "./context/AuthContext";
 import Sidebar from "./components/Sidebar";
 import ChatList from "./components/ChatList";
@@ -681,54 +681,66 @@ export default function App() {
       alert("Error: User not authenticated or no file provided");
       return;
     }
-    
+
     const fileName = file.name;
-    const fileSize = file.size;
     const mimeType = file.type;
+    console.log("uploadFileAndSend: Starting upload (Cloudinary)", { fileName, mimeType, mediaType });
 
-    console.log("uploadFileAndSend: Starting upload", { fileName, fileSize, mimeType, mediaType });
-
-    // Upload to Firebase Storage
-    let downloadUrl = null;
+    // Upload to Cloudinary first
+    let cloudResp;
     try {
-      const uploadPath = `chat-uploads/${user.uid}/${Date.now()}-${fileName}`;
-      const uploadRef = storageRef(storage, uploadPath);
-      console.log("uploadFileAndSend: Uploading to", uploadPath);
-      
-      await uploadBytes(uploadRef, file);
-      downloadUrl = await getDownloadURL(uploadRef);
-      console.log(`uploadFileAndSend: Upload successful, got URL`);
-    } catch (uploadError) {
-      console.error("uploadFileAndSend: Upload failed:", uploadError);
-      alert(`Upload failed: ${uploadError.message}`);
+      cloudResp = await uploadToCloudinary(file);
+      console.log("uploadFileAndSend: Cloudinary response:", cloudResp);
+    } catch (err) {
+      console.error("uploadFileAndSend: Cloudinary upload failed:", err);
+      alert("Upload failed: " + (err.message || "Cloudinary error"));
       return;
     }
 
-    // Build message payload with download URL based on media type
-    let messagePayload;
-    if (mediaType === "image") {
-      messagePayload = { type: "image", imageUrl: downloadUrl, text: "" };
-    } else if (mediaType === "video") {
-      messagePayload = { type: "video", imageUrl: downloadUrl, text: "📹 Video" };
-    } else if (mediaType === "audio" || mediaType === "voice") {
-      messagePayload = { type: "audio", audioUrl: downloadUrl, text: "🎤 Voice message" };
-    } else if (mediaType === "document") {
-      messagePayload = { type: "document", documentUrl: downloadUrl, text: `📎 ${fileName}` };
-    } else {
-      messagePayload = { type: mediaType, text: "" };
+    const cloudUrl = cloudResp?.secure_url || cloudResp?.url || null;
+    const publicId = cloudResp?.public_id || null;
+    const resourceType = cloudResp?.resource_type || (file.type.startsWith("image/") ? "image" : (file.type.startsWith("video/") ? "video" : "raw"));
+    const cloudFileSize = cloudResp?.bytes || file.size || 0;
+
+    if (!cloudUrl) {
+      console.error("uploadFileAndSend: Cloudinary did not return a URL", cloudResp);
+      alert("Upload failed: Cloudinary did not return a URL");
+      return;
     }
+
+    // Build message payload using Cloudinary URL and metadata
+    let messagePayload;
+    if (resourceType === "image") {
+      messagePayload = { type: "image", imageUrl: cloudUrl, text: "" };
+    } else if (resourceType === "video") {
+      messagePayload = { type: "video", imageUrl: cloudUrl, text: "📹 Video" };
+    } else if (mediaType === "audio" || resourceType === "audio") {
+      messagePayload = { type: "audio", audioUrl: cloudUrl, text: "🎤 Audio" };
+    } else if (mediaType === "document" || resourceType === "raw") {
+      messagePayload = { type: "document", documentUrl: cloudUrl, text: `📎 ${fileName}` };
+    } else {
+      messagePayload = { type: mediaType, text: "", fileUrl: cloudUrl };
+    }
+
+    // Attach Cloudinary metadata
+    messagePayload.cloudinary = {
+      url: cloudUrl,
+      publicId,
+      resourceType,
+      bytes: cloudFileSize,
+      raw: cloudResp,
+    };
 
     // Add file metadata
     messagePayload.fileName = fileName;
-    messagePayload.fileSize = fileSize;
+    messagePayload.fileSize = cloudFileSize;
     messagePayload.mimeType = mimeType;
 
-    console.log("uploadFileAndSend: Sending message", messagePayload);
+    console.log("uploadFileAndSend: Sending message with Cloudinary URL", messagePayload);
 
-    // Send the message via existing chat pipeline
     try {
       await sendMessage(messagePayload);
-      console.log("uploadFileAndSend: Message sent successfully");
+      console.log("uploadFileAndSend: Message sent successfully (Cloudinary)");
     } catch (error) {
       console.error("uploadFileAndSend: Failed to send message", error);
       alert("File uploaded but failed to send message: " + error.message);

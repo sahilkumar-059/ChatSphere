@@ -10,13 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "cloudinary": "^2.10.0",
     "emoji-picker-react": "^4.19.1",
     "firebase": "^12.15.0",
     "i18next": "^26.3.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-i18next": "^17.0.10",
-    "react-router-dom": "^7.18.0"
+    "react-router-dom": "^7.11.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
