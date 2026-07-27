@@ -211,3 +211,91 @@ export async function getUnreadCount(chatId, userId) {
   const snapshot = await getDocs(messagesQuery);
   return snapshot.docs.length;
 }
+
+// ============================================================
+// MESSAGE ACTIONS (Edit, Delete, etc.)
+// ============================================================
+
+/**
+ * Edit a text message. Only the sender can edit.
+ */
+export async function editMessage(messageId, newText) {
+  if (!messageId || !newText?.trim()) return;
+  try {
+    await updateDoc(doc(db, "messages", messageId), {
+      text: newText.trim(),
+      edited: true,
+      editedAt: serverTimestamp(),
+    });
+    console.log("chatService: Message edited:", messageId);
+  } catch (error) {
+    console.error("chatService: Error editing message:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a message for the current user only.
+ * Sets a deletedFor field with the user's ID.
+ */
+export async function deleteMessageForMe(messageId, userId) {
+  if (!messageId || !userId) return;
+  try {
+    await updateDoc(doc(db, "messages", messageId), {
+      deletedFor: userId,
+    });
+    console.log("chatService: Message deleted for user:", messageId, userId);
+  } catch (error) {
+    console.error("chatService: Error deleting message for me:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a message for everyone.
+ * Replaces content with deleted message placeholder.
+ */
+export async function deleteMessageForEveryone(messageId) {
+  if (!messageId) return;
+  try {
+    await updateDoc(doc(db, "messages", messageId), {
+      deletedForEveryone: true,
+      text: "This message was deleted",
+      imageUrl: "",
+      audioUrl: "",
+      documentUrl: "",
+      fileName: "",
+      fileSize: 0,
+      mimeType: "",
+      edited: false,
+    });
+    console.log("chatService: Message deleted for everyone:", messageId);
+  } catch (error) {
+    console.error("chatService: Error deleting message for everyone:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get message info (read receipts).
+ */
+export async function getMessageInfo(messageId) {
+  if (!messageId) return null;
+  try {
+    const snap = await getDoc(doc(db, "messages", messageId));
+    if (snap.exists()) {
+      const data = snap.data();
+      return {
+        id: snap.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.() || data.createdAt,
+        editedAt: data.editedAt?.toDate?.() || data.editedAt || null,
+        seenAt: data.seenAt?.toDate?.() || data.seenAt || null,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("chatService: Error getting message info:", error);
+    return null;
+  }
+}

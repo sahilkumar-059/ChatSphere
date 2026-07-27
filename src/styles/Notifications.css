@@ -11,6 +11,7 @@
   background: rgba(15, 23, 42, 0.6);
   min-width: 0;
   position: relative;
+  min-height: 0;
 }
 
 .notifications-panel {
@@ -25,6 +26,7 @@
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   overflow: hidden;
   animation: notifSlideUp 0.35s ease;
+  min-height: 0;
 }
 
 @keyframes notifSlideUp {
@@ -364,16 +366,18 @@
    ========================= */
 .notif-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
-  padding: 16px 24px;
+  padding: 14px 24px;
   border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   border: none;
   animation: cardSlide 0.3s ease;
+  min-height: 72px;
+  flex-shrink: 0;
 }
 
 .notif-card:active {
@@ -451,29 +455,34 @@
 .notif-avatar-wrapper {
   position: relative;
   flex-shrink: 0;
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .notif-avatar {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   object-fit: cover;
   background: rgba(255, 255, 255, 0.06);
   border: 2px solid rgba(255, 255, 255, 0.06);
+  display: block;
 }
 
 .notif-avatar-fallback {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   background: rgba(255, 255, 255, 0.06);
   border: 2px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
 }
 
 .notif-type-badge {

@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   subscribeToNotifications,
   markAsRead,
-  markAllAsRead,
+  markAllNotificationsRead,
   clearAllNotifications,
   formatRelativeTime,
 } from "../services/notificationService";
@@ -48,7 +48,7 @@ export default function NotificationsPage({ onNavigate }) {
 
   const handleMarkAllRead = async () => {
     if (!user?.uid || unreadCount === 0) return;
-    await markAllAsRead(user.uid);
+    await markAllNotificationsRead(user.uid);
   };
 
   const handleClearAll = async () => {
@@ -64,8 +64,8 @@ export default function NotificationsPage({ onNavigate }) {
     if (onNavigate) {
       switch (notif.type) {
         case "message":
-          if (notif.referenceId) {
-            onNavigate("chat", notif.referenceId, notif.senderId);
+          if (notif.chatId) {
+            onNavigate("chat", notif.chatId, notif.senderId);
           }
           break;
         case "friend":

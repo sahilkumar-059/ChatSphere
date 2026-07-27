@@ -1,5 +1,12 @@
+import { useState, useMemo, useCallback } from "react";
 import Composer from "./Composer";
 import MessageBubble from "./MessageBubble";
+import MediaViewer from "./MediaViewer";
+import MessageContextMenu from "./MessageContextMenu";
+import EditMessageModal from "./EditMessageModal";
+import DeleteMessageModal from "./DeleteMessageModal";
+import MessageInfoModal from "./MessageInfoModal";
+import { editMessage, deleteMessageForMe, deleteMessageForEveryone } from "../services/chatService";
 
 export default function ChatWindow({
   user,
@@ -23,6 +30,101 @@ export default function ChatWindow({
   onStartVideoCall,
   onSendFile,
 }) {
+  const [mediaViewer, setMediaViewer] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [editMessageData, setEditMessageData] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [infoMessage, setInfoMessage] = useState(null);
+
+  // Collect all image messages for navigation
+  const imageMessages = useMemo(() => {
+    return messages.filter((m) => m.type === "image" && m.imageUrl);
+  }, [messages]);
+
+  const handleImageClick = (message) => {
+    const index = imageMessages.findIndex((m) => m.id === message.id);
+    setMediaViewer({ images: imageMessages, initialIndex: Math.max(0, index) });
+  };
+
+  // Context menu handler
+  const handleContextMenu = useCallback((e, message) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX || 0,
+      y: e.clientY || 0,
+      message,
+      isOwn: message.senderId === user?.uid,
+    });
+  }, [user?.uid]);
+
+  // Copy text
+  const handleCopy = useCallback((msg) => {
+    if (msg.text) {
+      navigator.clipboard.writeText(msg.text).catch(() => {});
+    }
+  }, []);
+
+  // Edit message
+  const handleEdit = useCallback((msg) => {
+    setEditMessageData(msg);
+  }, []);
+
+  const handleEditSave = useCallback(async (messageId, newText) => {
+    await editMessage(messageId, newText);
+  }, []);
+
+  // Delete for Me
+  const handleDeleteForMe = useCallback((msg) => {
+    setDeleteModal({ message: msg, mode: "me" });
+  }, []);
+
+  const confirmDeleteForMe = useCallback(async () => {
+    if (!deleteModal?.message?.id || !user?.uid) return;
+    await deleteMessageForMe(deleteModal.message.id, user.uid);
+    setDeleteModal(null);
+  }, [deleteModal, user?.uid]);
+
+  // Delete for Everyone
+  const handleDeleteForEveryone = useCallback((msg) => {
+    setDeleteModal({ message: msg, mode: "everyone" });
+  }, []);
+
+  const confirmDeleteForEveryone = useCallback(async () => {
+    if (!deleteModal?.message?.id) return;
+    await deleteMessageForEveryone(deleteModal.message.id);
+    setDeleteModal(null);
+  }, [deleteModal]);
+
+  // Message Info
+  const handleMessageInfo = useCallback((msg) => {
+    setInfoMessage(msg);
+  }, []);
+
+  // Download media
+  const handleDownload = useCallback(async (msg) => {
+    const url = msg.imageUrl || msg.audioUrl || msg.documentUrl;
+    if (!url) return;
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = msg.fileName || `download.${blob.type.split("/")[1] || "bin"}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, "_blank");
+    }
+  }, []);
+
+  // Open media
+  const handleOpen = useCallback((msg) => {
+    const url = msg.imageUrl || msg.audioUrl || msg.documentUrl;
+    if (url) window.open(url, "_blank");
+  }, []);
   if (!chat) {
     return (
       <section className="chat-window-shell">
@@ -90,6 +192,8 @@ export default function ChatWindow({
               key={message.id}
               message={message}
               isOwn={message.senderId === user?.uid}
+              onImageClick={handleImageClick}
+              onContextMenu={handleContextMenu}
             />
           ))
         )}
@@ -123,6 +227,54 @@ export default function ChatWindow({
       <div className="hidden-actions">
         <button onClick={onMarkSeen}>Mark Seen</button>
       </div>
+
+      {mediaViewer && (
+        <MediaViewer
+          images={mediaViewer.images}
+          initialIndex={mediaViewer.initialIndex}
+          onClose={() => setMediaViewer(null)}
+        />
+      )}
+
+      {contextMenu && (
+        <MessageContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          message={contextMenu.message}
+          isOwn={contextMenu.isOwn}
+          onClose={() => setContextMenu(null)}
+          onCopy={handleCopy}
+          onEdit={handleEdit}
+          onDeleteForMe={handleDeleteForMe}
+          onDeleteForEveryone={handleDeleteForEveryone}
+          onMessageInfo={handleMessageInfo}
+          onDownload={handleDownload}
+          onOpen={handleOpen}
+        />
+      )}
+
+      {editMessageData && (
+        <EditMessageModal
+          message={editMessageData}
+          onSave={handleEditSave}
+          onClose={() => setEditMessageData(null)}
+        />
+      )}
+
+      {deleteModal && (
+        <DeleteMessageModal
+          mode={deleteModal.mode}
+          onConfirm={deleteModal.mode === "me" ? confirmDeleteForMe : confirmDeleteForEveryone}
+          onCancel={() => setDeleteModal(null)}
+        />
+      )}
+
+      {infoMessage && (
+        <MessageInfoModal
+          message={infoMessage}
+          onClose={() => setInfoMessage(null)}
+        />
+      )}
     </section>
   );
 }
