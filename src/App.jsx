@@ -676,22 +676,31 @@ export default function App() {
   };
 
   const uploadFileAndSend = async (file, mediaType = "image") => {
-    if (!user || !file) return;
+    if (!user || !file) {
+      console.error("uploadFileAndSend: Missing user or file");
+      alert("Error: User not authenticated or no file provided");
+      return;
+    }
     
     const fileName = file.name;
     const fileSize = file.size;
     const mimeType = file.type;
+
+    console.log("uploadFileAndSend: Starting upload", { fileName, fileSize, mimeType, mediaType });
 
     // Upload to Firebase Storage
     let downloadUrl = null;
     try {
       const uploadPath = `chat-uploads/${user.uid}/${Date.now()}-${fileName}`;
       const uploadRef = storageRef(storage, uploadPath);
+      console.log("uploadFileAndSend: Uploading to", uploadPath);
+      
       await uploadBytes(uploadRef, file);
       downloadUrl = await getDownloadURL(uploadRef);
-      console.log(`uploadFileAndSend: Uploaded ${mediaType} to ${downloadUrl}`);
+      console.log(`uploadFileAndSend: Upload successful, got URL`);
     } catch (uploadError) {
       console.error("uploadFileAndSend: Upload failed:", uploadError);
+      alert(`Upload failed: ${uploadError.message}`);
       return;
     }
 
@@ -714,8 +723,16 @@ export default function App() {
     messagePayload.fileSize = fileSize;
     messagePayload.mimeType = mimeType;
 
+    console.log("uploadFileAndSend: Sending message", messagePayload);
+
     // Send the message via existing chat pipeline
-    await sendMessage(messagePayload);
+    try {
+      await sendMessage(messagePayload);
+      console.log("uploadFileAndSend: Message sent successfully");
+    } catch (error) {
+      console.error("uploadFileAndSend: Failed to send message", error);
+      alert("File uploaded but failed to send message: " + error.message);
+    }
   };
 
   const handleImageUpload = async (event) => {
@@ -856,32 +873,55 @@ export default function App() {
               onStartVoiceCall={() => startCall(false)}
               onStartVideoCall={() => startCall(true)}
               onSendFile={(files) => {
-                const item = files?.[0];
-                if (!item?.file && item?.category !== "location" && item?.category !== "contact") return;
-                
+                console.log("onSendFile called with files:", files);
+                if (!files || files.length === 0) {
+                  console.warn("No files provided");
+                  return;
+                }
+                 
+                const item = files[0];
+                console.log("Processing item:", item);
+                 
+                if (!item) {
+                  console.warn("Item is undefined");
+                  return;
+                }
+                 
                 // Use the explicit category from AttachmentSheet/Composer
                 const category = item.category || "image";
                 const file = item.file;
-                
+                 
+                console.log("Category:", category, "File exists:", !!file);
+                 
                 // Location sharing
                 if (category === "location" && item.latitude && item.longitude) {
+                  console.log("Sending location");
                   sendMessage({
                     text: `📍 ${item.name || "Location"}\nhttps://maps.google.com/maps?q=${item.latitude},${item.longitude}`,
                     type: "text",
                   });
                   return;
                 }
-                
+                 
                 // Contact sharing
                 if (category === "contact" && item.contactData) {
+                  console.log("Sending contact");
                   sendMessage({
                     text: `👤 ${item.contactData.name}\n📞 ${item.contactData.phone}`,
                     type: "text",
                   });
                   return;
                 }
-                
-                if (file) uploadFileAndSend(file, category);
+                 
+                // File upload
+                if (!file) {
+                  console.error("No file object provided for category:", category);
+                  alert("Error: No file selected. Please try again.");
+                  return;
+                }
+                 
+                console.log("Uploading file:", file.name, "as", category);
+                uploadFileAndSend(file, category);
               }}
             />
           </>

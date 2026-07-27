@@ -42,6 +42,7 @@ export default function AttachmentSheet({ onSelect, onClose, onCameraRequest }) 
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
             }]);
+            onClose();
           },
           () => alert("Could not get location. Check permissions."),
           { enableHighAccuracy: true }
@@ -54,6 +55,7 @@ export default function AttachmentSheet({ onSelect, onClose, onCameraRequest }) 
       const contactData = { phone: prompt("Enter phone number:"), name: prompt("Enter contact name:") };
       if (contactData.phone && contactData.name) {
         onSelect([{ file: null, name: `${contactData.name}.vcf`, type: "text/vcard", category: "contact", contactData }]);
+        onClose();
       }
       return;
     }
@@ -64,30 +66,40 @@ export default function AttachmentSheet({ onSelect, onClose, onCameraRequest }) 
     if (option.accept) input.accept = option.accept;
     if (option.multiple) input.multiple = true;
 
-    input.onchange = async (e) => {
-      const files = Array.from(e.target.files);
-      if (files.length === 0) return;
-
-      const processed = [];
-      for (const file of files) {
-        let processedFile = file;
-        if (file.type.startsWith("image/") && file.size > 2 * 1024 * 1024) {
-          try {
-            processedFile = await compressImage(file);
-          } catch (err) {
-            console.error("Compress error:", err);
-          }
-        }
-        processed.push({
-          file: processedFile,
-          name: processedFile.name,
-          size: processedFile.size,
-          type: processedFile.type,
-          category: option.id === "photo" ? (file.type.startsWith("video/") ? "video" : "image") : option.id,
-        });
+    input.addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) {
+        console.log("No files selected");
+        return;
       }
-      onSelect(processed);
-    };
+
+      try {
+        const processed = [];
+        for (const file of files) {
+          let processedFile = file;
+          if (file.type.startsWith("image/") && file.size > 2 * 1024 * 1024) {
+            try {
+              processedFile = await compressImage(file);
+            } catch (err) {
+              console.error("Compress error:", err);
+            }
+          }
+          processed.push({
+            file: processedFile,
+            name: processedFile.name,
+            size: processedFile.size,
+            type: processedFile.type,
+            category: option.id === "photo" ? (file.type.startsWith("video/") ? "video" : "image") : option.id,
+          });
+        }
+        console.log("Files processed:", processed.length);
+        onSelect(processed);
+        onClose();
+      } catch (error) {
+        console.error("Error processing files:", error);
+      }
+    }, { once: true });
+
     input.click();
   };
 
